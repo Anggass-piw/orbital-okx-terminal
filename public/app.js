@@ -178,12 +178,34 @@ function calcPosition() {
   return { qty: Math.max(0, qty), risk, sl: state.price - stopDistance, tp: state.price + state.atr * 2.5 };
 }
 
+function clearMarketDisplay(message = 'Menunggu data pasar') {
+  Object.assign(state, { price:null, open24h:null, volume:null, rsi:null, atr:null, taScore:0, score:0, candles:[], connected:false });
+  for (const id of ['priceValue','changeValue','rsiValue','scoreValue','gaugeScore','taScore','atrValue','stopValue','positionSize','riskSL','riskTP','volumeValue','updatedAt']) {
+    $('#' + id).textContent = '—';
+  }
+  $('#chartAsset').textContent = state.asset;
+  $('#changeValue').className = 'change-pill neutral';
+  $('#rsiBar').style.width = '0%';
+  $('#rsiState').textContent = 'Menunggu data';
+  $('#scoreState').textContent = 'Menunggu data';
+  $('#signalText').textContent = 'WAIT';
+  $('#signalText').className = 'signal-hold';
+  $('#signalHint').textContent = message;
+  $('#riskAmount').textContent = 'Risiko nominal: —';
+  $('#thresholdMarker').style.left = '50%';
+  $('#signalGauge').style.background = '#26313b';
+  $('#paperTradeBtn').disabled = true;
+  $('#paperTradeBtn').textContent = 'Tunggu data pasar';
+  $('#paperFootnote').textContent = 'Simulasi menunggu data pasar yang valid.';
+  drawChart();
+}
+
 async function loadMarket() {
   if (state.loading) { state.pendingMarketReload = true; return; }
   const requestedAsset = state.asset;
   const requestedBar = state.bar;
   state.loading = true;
-  state.connected = false;
+  clearMarketDisplay('Memuat data OKX…');
   $('#paperTradeBtn').disabled = true;
   $('#refreshBtn').disabled = true;
   $('#refreshBtn').textContent = 'Memuat…';
