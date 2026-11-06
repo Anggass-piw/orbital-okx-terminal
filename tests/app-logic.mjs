@@ -41,5 +41,13 @@ assert.equal(state.portfolio.position, null, 'A SELL can close a paper long even
 assert.equal(state.portfolio.cash, 200);
 assert.equal(state.portfolio.trades.length, 1);
 assert.equal(state.portfolio.trades[0].pnl, 20);
+state.asset = 'SOL-USDT'; state.candles = [{close:2225}];
+$('#priceValue').textContent = '2225';
+clearMarketDisplay('Memuat data OKX…');
+assert.equal(state.price, null);
+assert.equal(state.candles.length, 0);
+assert.equal($('#priceValue').textContent, '—');
+assert.equal($('#chartAsset').textContent, 'SOL-USDT');
+assert.equal($('#paperTradeBtn').disabled, true);
 `, context);
-console.log('app-logic: OK — RSI/ATR, risk sizing, and zero-cash paper exits pass without network or exchange orders.');
+console.log('app-logic: OK — RSI/ATR, risk sizing, zero-cash exits and stale cross-asset display guards pass without network or exchange orders.');
