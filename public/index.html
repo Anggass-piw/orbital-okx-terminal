@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#090c12">
-  <meta name="description" content="Dashboard analisis teknikal dan fundamental untuk paper trading kripto dengan data pasar publik OKX.">
+  <meta name="description" content="Dashboard analisis teknikal dan paper trading kripto dengan data publik OKX, plus gateway order privat yang mati secara default.">
   <title>Orbital — Quant Terminal</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
-  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
@@ -23,6 +23,7 @@
       <a class="nav-item active" href="#overview"><span class="nav-icon">◫</span>Ringkasan</a>
       <a class="nav-item" href="#engine"><span class="nav-icon">⌁</span>Signal engine</a>
       <a class="nav-item" href="#paper"><span class="nav-icon">▤</span>Paper portfolio</a>
+      <a class="nav-item" href="#live"><span class="nav-icon">↗</span>Live gateway</a>
       <div class="side-bottom">
         <div class="mode-card"><span class="mode-dot"></span><div><b>SIMULASI AKTIF</b><small>Order nyata nonaktif</small></div></div>
         <div class="profile"><span class="avatar">O</span><span><b>Workspace lokal</b><small>Data tersimpan di perangkat</small></span></div>
@@ -40,11 +41,11 @@
 
       <section class="page-heading">
         <div><p class="eyebrow">QUANTITATIVE CRYPTO · <span id="todayLabel">—</span></p><h1>Market overview<span class="heading-period">.</span></h1><p class="subhead">Sinyal komposit, risiko terukur, dan simulasi—dalam satu workspace.</p></div>
-        <div class="heading-actions"><button class="button button-quiet" id="installBtn" hidden>＋ Pasang aplikasi</button><button class="button button-outline" id="refreshBtn"><span class="refresh-glyph">↻</span> Perbarui data</button></div>
+        <div class="heading-actions"><button class="button button-quiet" id="installBtn">＋ Pasang aplikasi</button><button class="button button-outline" id="refreshBtn"><span class="refresh-glyph">↻</span> Perbarui data</button></div>
       </section>
 
       <section class="safety-banner" role="note">
-        <span class="safety-icon">!</span><div><b>PREVIEW AMAN · PAPER TRADING SAJA</b><p>Halaman publik ini hanya membaca data pasar. Jangan masukkan API key. Order live dinonaktifkan sampai tersedia backend privat yang aman.</p></div>
+        <span class="safety-icon">!</span><div><b>PREVIEW AMAN · PAPER TRADING SAJA</b><p>Data pasar publik lewat proxy same-origin. Order nyata mati secara default dan hanya bisa diaktifkan lewat backend privat; jangan masukkan API key OKX di sini.</p></div>
         <span class="banner-lock" aria-hidden="true">▣</span>
       </section>
 
@@ -64,7 +65,7 @@
         </article>
 
         <article class="panel signal-panel" id="engine">
-          <div class="panel-heading"><div><div class="panel-title">Signal engine</div><div class="panel-subtitle">Skor komposit probabilistik</div></div><span class="engine-mark">⌁</span></div>
+          <div class="panel-heading"><div><div class="panel-title">Signal engine</div><div class="panel-subtitle">Skor TA + sentimen manual</div></div><span class="engine-mark">⌁</span></div>
           <div class="signal-main"><div class="signal-gauge" id="signalGauge"><div class="gauge-inner"><span class="gauge-score" id="gaugeScore">—</span><span class="gauge-label">COMPOSITE</span></div></div><div class="signal-result"><span class="signal-kicker">SIGNAL SAAT INI</span><b id="signalText" class="signal-hold">WAIT</b><small id="signalHint">Menghitung sinyal…</small></div></div>
           <div class="score-breakdown"><div class="breakdown-row"><span>Technical score <small>RSI normalized</small></span><b id="taScore">—</b></div><div class="breakdown-row"><span>Fundamental score <small>Input sentimen manual</small></span><b id="faScoreDisplay">0.00</b></div></div>
           <div class="signal-threshold"><span>SELL <b>−0.65</b></span><div class="threshold-track"><i class="threshold-center"></i><i id="thresholdMarker"></i></div><span>BUY <b>+0.65</b></span></div>
@@ -93,6 +94,30 @@
         </article>
       </section>
 
+      <section class="panel live-panel" id="live">
+        <div class="panel-heading"><div><div class="panel-title">Live order gateway</div><div class="panel-subtitle">Order spot limit manual · tidak ada auto-trading</div></div><span class="live-mode-badge disabled" id="liveModeBadge">NONAKTIF</span></div>
+        <div class="live-unavailable" id="liveUnavailable" role="status">Memeriksa status backend privat…</div>
+        <div class="live-form" id="liveForm" hidden>
+          <div class="live-warning"><b>Perhatian:</b> order yang dikonfirmasi dapat menggunakan dana nyata. Gateway hanya mengirim order limit, tanpa SL/TP otomatis; level risiko di dashboard hanya untuk paper. Gunakan API key khusus trading tanpa izin penarikan dan batasi IP. API secret hanya disimpan di backend, bukan di halaman ini.</div>
+          <div class="live-input-grid">
+            <label>Token akses backend privat<input id="liveToken" type="password" autocomplete="off" spellcheck="false" placeholder="Token hanya disimpan sementara di halaman ini"></label>
+            <label>Sisi order<select id="liveOrderSide"><option value="buy">BUY</option><option value="sell">SELL</option></select></label>
+            <label>Ukuran aset<input id="liveOrderSize" type="number" min="0.00000001" step="any" inputmode="decimal" placeholder="Contoh: 0.001"></label>
+            <label>Harga limit (USDT)<input id="liveOrderPrice" type="number" min="0.00000001" step="any" inputmode="decimal" placeholder="Harga limit"></label>
+          </div>
+          <p class="live-limit-note" id="liveLimitNote">Backend memvalidasi batas notional, aset, dan selisih harga sebelum menyiapkan preview.</p>
+          <button class="button button-outline" id="livePreviewButton" type="button">Minta preview order</button>
+          <div class="live-preview" id="livePreview" hidden>
+            <b>Periksa rincian order</b>
+            <p id="livePreviewSummary"></p>
+            <small id="livePreviewExpiry"></small>
+            <label>Ketik <code>KIRIM ORDER LIVE</code> untuk menyetujui<input id="liveConfirmInput" type="text" autocomplete="off" placeholder="Frasa konfirmasi persis"></label>
+            <div class="live-actions"><button class="button button-primary" id="liveSubmitButton" type="button" disabled>Konfirmasi &amp; kirim order nyata</button><button class="button button-outline" id="liveCancelButton" type="button">Batalkan preview</button></div>
+          </div>
+          <div class="live-result" id="liveResult" role="status" aria-live="polite"></div>
+        </div>
+      </section>
+
       <section class="panel activity-panel">
         <div class="panel-heading"><div><div class="panel-title">Recent activity</div><div class="panel-subtitle">Riwayat paper trade pada perangkat ini</div></div><button class="text-button" id="clearHistoryBtn">Bersihkan riwayat</button></div>
         <div class="table-scroll"><table><thead><tr><th>WAKTU</th><th>ASET</th><th>AKSI</th><th>HARGA</th><th>UKURAN</th><th>REALIZED P&L</th><th>STATUS</th></tr></thead><tbody id="activityBody"><tr class="empty-row"><td colspan="7">Belum ada aktivitas. Tunggu data pasar lalu jalankan simulasi.</td></tr></tbody></table></div>
@@ -100,6 +125,15 @@
       <footer class="footer"><span>ORBITAL QUANT TERMINAL <i>·</i> PAPER MODE</span><span>Data pasar dari OKX · Bukan saran investasi</span></footer>
     </main>
   </div>
+  <dialog class="install-dialog" id="installHelp" aria-labelledby="installHelpTitle">
+    <h2 id="installHelpTitle">Pasang Orbital</h2>
+    <p>Pasang dari URL HTTPS halaman ini. Membuka aplikasi tidak mengaktifkan order nyata.</p>
+    <p><b>Android / Chrome:</b> menu ⋮ → Instal aplikasi atau Tambahkan ke layar utama.</p>
+    <p><b>iPhone / iPad:</b> buka di Safari → Bagikan → Tambahkan ke Layar Utama.</p>
+    <p><b>Desktop Chrome / Edge:</b> gunakan ikon instalasi di bilah alamat atau menu browser → Instal aplikasi.</p>
+    <small>Shell bisa dibuka offline setelah dimuat. Harga pasar tetap memerlukan internet; data paper disimpan per perangkat.</small>
+    <button class="button button-primary" id="closeInstallHelp" type="button">Mengerti</button>
+  </dialog>
   <noscript>Aplikasi memerlukan JavaScript untuk menghitung indikator dan membaca data pasar publik.</noscript>
 </body>
 </html>

@@ -1,7 +1,7 @@
 {
   "name": "Orbital Quant Terminal",
   "short_name": "Orbital Quant",
-  "description": "Analisis kripto TA+FA dan paper trading aman.",
+  "description": "Analisis kripto TA+FA, paper trading lokal, dan gateway order privat yang nonaktif secara default.",
   "lang": "id-ID",
   "start_url": "/",
   "scope": "/",
