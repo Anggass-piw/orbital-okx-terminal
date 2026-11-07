@@ -3,131 +3,189 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#090c12">
-  <meta name="description" content="Dashboard analisis teknikal dan paper trading kripto dengan data publik OKX, plus gateway order privat yang mati secara default.">
-  <title>Orbital — Quant Terminal</title>
+  <meta name="theme-color" content="#0b0d0f">
+  <meta name="description" content="Terminal perpetual OKX Swap untuk data pasar publik, analisis teknikal, sizing kontrak, dan paper trading. Order nyata nonaktif di preview publik.">
+  <title>Orbital — OKX Perpetual Terminal</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="stylesheet" href="/styles.css">
+  <script src="/vendor/lightweight-charts.standalone.production.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
   <div class="app-shell">
-    <aside class="sidebar" aria-label="Navigasi utama">
-      <a class="brand" href="#overview" aria-label="Orbital beranda">
-        <span class="brand-mark"><i></i><i></i><i></i></span>
-        <span><b>ORBITAL</b><small>QUANT TERMINAL</small></span>
+    <header class="topbar">
+      <a class="brand" href="#overview" aria-label="Orbital, beranda terminal">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="brand-copy"><b>ORBITAL</b><small>MARKET TERMINAL</small></span>
       </a>
-      <div class="side-label">WORKSPACE</div>
-      <a class="nav-item active" href="#overview"><span class="nav-icon">◫</span>Ringkasan</a>
-      <a class="nav-item" href="#engine"><span class="nav-icon">⌁</span>Signal engine</a>
-      <a class="nav-item" href="#paper"><span class="nav-icon">▤</span>Paper portfolio</a>
-      <a class="nav-item" href="#live"><span class="nav-icon">↗</span>Live gateway</a>
-      <div class="side-bottom">
-        <div class="mode-card"><span class="mode-dot"></span><div><b>SIMULASI AKTIF</b><small>Order nyata nonaktif</small></div></div>
-        <div class="profile"><span class="avatar">O</span><span><b>Workspace lokal</b><small>Data tersimpan di perangkat</small></span></div>
+      <nav class="main-nav" aria-label="Navigasi terminal">
+        <a class="nav-item active" href="#overview">Pasar</a>
+        <a class="nav-item" href="#engine">Analisis</a>
+        <a class="nav-item" href="#paper">Paper portfolio</a>
+        <a class="nav-item" href="#activity">Riwayat</a>
+      </nav>
+      <div class="top-actions">
+        <span class="connection" aria-live="polite"><i id="connectionDot"></i><span id="connectionText">Menyambungkan</span></span>
+        <span class="terminal-mode"><i aria-hidden="true"></i><span id="terminalModeText">DATA PUBLIK · PAPER</span></span>
+        <button class="button button-install" id="installBtn" type="button">Pasang aplikasi</button>
       </div>
-    </aside>
+    </header>
 
     <main class="main-content" id="overview">
-      <header class="topbar">
-        <div class="crumb">WORKSPACE <span>/</span> DASHBOARD</div>
-        <div class="top-actions">
-          <span class="connection"><i id="connectionDot"></i><span id="connectionText">Menyambungkan</span></span>
-          <span class="exchange-tag"><span class="exchange-glyph">OK</span> OKX · SPOT</span>
+      <section class="market-heading" aria-label="Pasar terpilih">
+        <div class="pair-block">
+          <div class="pair-mark" id="assetGlyph" aria-hidden="true"><span class="coin-fallback">BTC</span></div>
+          <div class="pair-name"><div class="pair-title"><label class="sr-only" for="assetSelect">Pilih perpetual USDT</label><select id="assetSelect" aria-label="Pilih perpetual USDT"><option value="">Memuat instrumen OKX…</option></select><span class="contract-tag" id="pairType">SWAP</span></div><div class="pair-meta"><span class="pair-caption" id="pairCaption">USDT perpetual · memuat katalog</span><span class="instrument-count" id="instrumentCount">Memuat pair…</span></div><div class="instrument-search-wrap"><label class="sr-only" for="instrumentSearch">Cari koin atau pair perpetual USDT</label><input id="instrumentSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Cari koin / pair (mis. BTC)" aria-label="Cari instrumen perpetual" aria-autocomplete="list" aria-controls="instrumentResults" aria-expanded="false" aria-describedby="instrumentSearchStatus"><div class="instrument-results" id="instrumentResults" role="listbox" aria-label="Hasil pencarian instrumen" hidden></div></div><span class="sr-only" id="instrumentSearchStatus" role="status" aria-live="polite"></span><span class="contract-value" id="contractValue">Nilai kontrak —</span></div>
         </div>
-      </header>
-
-      <section class="page-heading">
-        <div><p class="eyebrow">QUANTITATIVE CRYPTO · <span id="todayLabel">—</span></p><h1>Market overview<span class="heading-period">.</span></h1><p class="subhead">Sinyal komposit, risiko terukur, dan simulasi—dalam satu workspace.</p></div>
-        <div class="heading-actions"><button class="button button-quiet" id="installBtn">＋ Pasang aplikasi</button><button class="button button-outline" id="refreshBtn"><span class="refresh-glyph">↻</span> Perbarui data</button></div>
+        <div class="quote-primary"><span class="quote-label">Harga terakhir <small>USDT</small></span><strong id="priceValue">—</strong><span class="change-pill neutral" id="changeValue">—</span></div>
+        <div class="quote-stat"><span>Tertinggi 24 jam</span><b id="marketHigh">—</b></div>
+        <div class="quote-stat"><span>Terendah 24 jam</span><b id="marketLow">—</b></div>
+        <div class="quote-stat volume-stat"><span>Kontrak diperdagangkan 24 jam</span><b id="volumeValue">—</b></div>
+        <div class="heading-actions"><button class="button button-outline" id="refreshBtn" type="button"><span class="refresh-glyph" aria-hidden="true">↻</span> Perbarui data</button></div>
       </section>
 
-      <section class="safety-banner" role="note">
-        <span class="safety-icon">!</span><div><b>PREVIEW AMAN · PAPER TRADING SAJA</b><p>Data pasar publik lewat proxy same-origin. Order nyata mati secara default dan hanya bisa diaktifkan lewat backend privat; jangan masukkan API key OKX di sini.</p></div>
-        <span class="banner-lock" aria-hidden="true">▣</span>
+      <section class="safety-banner" role="note" aria-label="Status keselamatan">
+        <span class="safety-icon" aria-hidden="true">!</span>
+        <div><b id="safetyTitle">SIMULASI SAJA · TIDAK ADA ORDER NYATA</b><p id="safetyDescription">Data pasar berasal dari OKX Swap USDT perpetual. Paper portfolio dan analisis tidak terhubung ke akun; jangan masukkan API key di preview publik.</p></div>
+        <span class="safety-context">PAPER MODE</span>
       </section>
 
-      <section class="market-strip" aria-label="Data pasar">
-        <article class="metric-card market-card"><div class="metric-top"><span class="metric-label">HARGA <span class="muted">/ USDT</span></span><span class="asset-select-wrap"><select id="assetSelect" aria-label="Pilih aset"><option value="BTC-USDT">BTC / USDT</option><option value="ETH-USDT">ETH / USDT</option><option value="SOL-USDT">SOL / USDT</option></select><span class="select-arrow">⌄</span></span></div><div class="metric-value" id="priceValue">—</div><div class="metric-foot"><span class="change-pill neutral" id="changeValue">—</span><span class="metric-caption">Perubahan 24 jam</span></div></article>
+      <section class="market-strip" aria-label="Ringkasan indikator pasar">
         <article class="metric-card"><div class="metric-top"><span class="metric-label">RSI <span class="muted">/ 14</span></span><span class="tiny-chip">TEKNIKAL</span></div><div class="metric-value" id="rsiValue">—</div><div class="metric-foot"><span class="micro-bar"><i id="rsiBar"></i></span><span class="metric-caption" id="rsiState">Memuat indikator</span></div></article>
-        <article class="metric-card score-card"><div class="metric-top"><span class="metric-label">SKOR KOMPOSIT</span><span class="tiny-chip">TA + FA</span></div><div class="metric-value" id="scoreValue">—</div><div class="metric-foot"><span class="score-state" id="scoreState">Menunggu data</span><span class="metric-caption">Rentang −1.00 s/d +1.00</span></div></article>
+        <article class="metric-card score-card"><div class="metric-top"><span class="metric-label">SKOR KOMPOSIT</span><span class="tiny-chip">TA + SENTIMEN</span></div><div class="metric-value" id="scoreValue">—</div><div class="metric-foot"><span class="score-state" id="scoreState">Menunggu data</span><span class="metric-caption">−1.00 s/d +1.00</span></div></article>
         <article class="metric-card"><div class="metric-top"><span class="metric-label">VOLATILITAS <span class="muted">/ ATR</span></span><span class="tiny-chip">14 PERIODE</span></div><div class="metric-value" id="atrValue">—</div><div class="metric-foot"><span class="metric-caption">Stop dinamis: <b id="stopValue">—</b></span></div></article>
+        <article class="metric-card metric-update"><div class="metric-top"><span class="metric-label">KONEKSI PASAR</span><span class="status-chip"><i></i> PUBLIK</span></div><div class="metric-value update-value">OKX <span>SWAP API</span></div><div class="metric-foot"><span class="metric-caption">Pembaruan terakhir</span><b class="updated-value" id="updatedAt">—</b></div></article>
       </section>
 
-      <section class="primary-grid">
-        <article class="panel chart-panel">
-          <div class="panel-heading"><div><div class="panel-title">Market structure</div><div class="panel-subtitle"><span class="chart-asset" id="chartAsset">BTC-USDT</span> <span class="live-dot"></span> Data publik OKX</div></div><div class="timeframe-group" role="group" aria-label="Rentang chart"><button class="timeframe" data-bar="15m">15m</button><button class="timeframe selected" data-bar="1H">1H</button><button class="timeframe" data-bar="4H">4H</button><button class="timeframe" data-bar="1D">1D</button></div></div>
-          <div class="chart-stats"><span>OHLC CANDLES</span><span>VOLUME <b id="volumeValue">—</b></span><span>UPDATE <b id="updatedAt">—</b></span></div>
-          <div class="chart-wrap"><canvas id="priceChart" aria-label="Grafik harga candlestick"></canvas><div class="chart-tooltip" id="chartTooltip" hidden></div><div class="chart-empty" id="chartEmpty" hidden>Belum ada data grafik. Coba perbarui.</div></div>
-          <div class="chart-legend"><span><i class="legend-dot up"></i> Naik</span><span><i class="legend-dot down"></i> Turun</span><span class="chart-source">Sumber: OKX public market API</span></div>
-        </article>
+      <section class="terminal-grid" aria-label="Terminal pasar dan simulasi">
+        <div class="market-workspace">
+          <article class="panel chart-panel" aria-labelledby="chartTitle">
+            <div class="panel-heading chart-heading"><div><div class="section-kicker">GRAFIK PASAR</div><div class="chart-title-row"><h1 class="panel-title" id="chartTitle">Struktur harga</h1><span class="chart-asset" id="chartAsset">BTC-USDT-SWAP</span><span class="live-dot" aria-label="Data publik"></span></div></div><div class="timeframe-group" role="group" aria-label="Rentang grafik"><button class="timeframe" data-bar="15m" type="button">15m</button><button class="timeframe selected" data-bar="1H" type="button" aria-pressed="true">1H</button><button class="timeframe" data-bar="4H" type="button">4H</button><button class="timeframe" data-bar="1D" type="button">1D</button></div></div>
+            <div class="chart-toolbar"><span><i class="toolbar-dot"></i> Candlestick OHLC</span><span>Pasangan kuotasi <b>USDT</b></span><span class="chart-ohlc" id="chartOhlc">O — H — L — C —</span></div>
+            <div class="chart-wrap"><div id="priceChart" role="img" aria-label="Grafik candlestick TradingView untuk pasar terpilih"></div><div class="chart-tooltip" id="chartTooltip" hidden></div><div class="chart-empty" id="chartEmpty" hidden>Belum ada data grafik. Coba perbarui.</div></div>
+            <div class="chart-legend"><span><i class="legend-dot up"></i>Naik</span><span><i class="legend-dot down"></i>Turun</span><span class="chart-source">Data: OKX API · chart: <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">TradingView Lightweight Charts</a></span></div>
+          </article>
 
-        <article class="panel signal-panel" id="engine">
-          <div class="panel-heading"><div><div class="panel-title">Signal engine</div><div class="panel-subtitle">Skor TA + sentimen manual</div></div><span class="engine-mark">⌁</span></div>
-          <div class="signal-main"><div class="signal-gauge" id="signalGauge"><div class="gauge-inner"><span class="gauge-score" id="gaugeScore">—</span><span class="gauge-label">COMPOSITE</span></div></div><div class="signal-result"><span class="signal-kicker">SIGNAL SAAT INI</span><b id="signalText" class="signal-hold">WAIT</b><small id="signalHint">Menghitung sinyal…</small></div></div>
-          <div class="score-breakdown"><div class="breakdown-row"><span>Technical score <small>RSI normalized</small></span><b id="taScore">—</b></div><div class="breakdown-row"><span>Fundamental score <small>Input sentimen manual</small></span><b id="faScoreDisplay">0.00</b></div></div>
-          <div class="signal-threshold"><span>SELL <b>−0.65</b></span><div class="threshold-track"><i class="threshold-center"></i><i id="thresholdMarker"></i></div><span>BUY <b>+0.65</b></span></div>
-          <div class="equation-note">S<sub>c</sub> = W<sub>ta</sub> · S<sub>ta</sub> + W<sub>fa</sub> · S<sub>fa</sub></div>
-        </article>
-      </section>
-
-      <section class="lower-grid">
-        <article class="panel controls-panel">
-          <div class="panel-heading"><div><div class="panel-title">Risk & signal controls</div><div class="panel-subtitle">Atur parameter simulasi lokal</div></div><span class="settings-icon">⚙</span></div>
-          <div class="control-grid">
-            <label class="control-block"><span class="control-title">Sentimen fundamental <b id="faValue">0.00</b></span><span class="control-help">Nilai berita / on-chain manual · −1 bearish, +1 bullish</span><input id="faInput" type="range" min="-1" max="1" step="0.05" value="0"><span class="range-ends"><span>−1 bearish</span><span>0 netral</span><span>+1 bullish</span></span></label>
-            <label class="control-block"><span class="control-title">Risiko per trade <b id="riskValueLabel">1.0%</b></span><span class="control-help">Persentase ekuitas maksimum yang berisiko</span><input id="riskInput" type="range" min="0.25" max="2" step="0.25" value="1"><span class="range-ends"><span>0.25%</span><span>1.0%</span><span>2.0%</span></span></label>
-            <label class="control-block"><span class="control-title">Bobot teknikal <b id="taWeightLabel">70%</b></span><span class="control-help">Sisa bobot dialokasikan ke FA</span><input id="weightInput" type="range" min="0" max="100" step="5" value="70"><span class="range-ends"><span>0% TA</span><span>70% default</span><span>100% TA</span></span></label>
-            <div class="risk-output"><span class="output-caption">ESTIMASI POSISI</span><b id="positionSize">—</b><span id="riskAmount">Risiko nominal: —</span><div class="risk-foot"><span>SL <b id="riskSL">—</b></span><span>TP <b id="riskTP">—</b></span></div></div>
-          </div>
-          <div class="model-note"><span>i</span><span>Posisi dihitung dari saldo paper, risiko tetap, dan jarak stop berbasis 1.5× ATR. Besaran dibatasi agar notional tidak melebihi saldo spot.</span></div>
-        </article>
-
-        <article class="panel paper-panel" id="paper">
-          <div class="panel-heading"><div><div class="panel-title">Paper portfolio</div><div class="panel-subtitle">Simulasi tersimpan di browser ini saja</div></div><span class="paper-badge"><i></i> PAPER</span></div>
-          <div class="portfolio-total"><div><span class="output-caption">TOTAL EKUITAS</span><b id="equityValue">$10,000.00</b></div><div class="portfolio-pnl"><span class="output-caption">UNREALIZED P&L</span><b id="pnlValue">$0.00</b></div></div>
-          <div class="portfolio-mini"><div><span>Saldo USDT</span><b id="cashValue">$10,000.00</b></div><div><span>Posisi aktif</span><b id="openPosition">Tidak ada</b></div></div>
-          <button class="button button-primary execute-button" id="paperTradeBtn" disabled>Simulasikan sinyal</button>
-          <div class="paper-footnote" id="paperFootnote">Paper trade tidak mengirim order ke bursa.</div>
-        </article>
-      </section>
-
-      <section class="panel live-panel" id="live">
-        <div class="panel-heading"><div><div class="panel-title">Live order gateway</div><div class="panel-subtitle">Order spot limit manual · tidak ada auto-trading</div></div><span class="live-mode-badge disabled" id="liveModeBadge">NONAKTIF</span></div>
-        <div class="live-unavailable" id="liveUnavailable" role="status">Memeriksa status backend privat…</div>
-        <div class="live-form" id="liveForm" hidden>
-          <div class="live-warning"><b>Perhatian:</b> order yang dikonfirmasi dapat menggunakan dana nyata. Gateway hanya mengirim order limit, tanpa SL/TP otomatis; level risiko di dashboard hanya untuk paper. Gunakan API key khusus trading tanpa izin penarikan dan batasi IP. API secret hanya disimpan di backend, bukan di halaman ini.</div>
-          <div class="live-input-grid">
-            <label>Token akses backend privat<input id="liveToken" type="password" autocomplete="off" spellcheck="false" placeholder="Token hanya disimpan sementara di halaman ini"></label>
-            <label>Sisi order<select id="liveOrderSide"><option value="buy">BUY</option><option value="sell">SELL</option></select></label>
-            <label>Ukuran aset<input id="liveOrderSize" type="number" min="0.00000001" step="any" inputmode="decimal" placeholder="Contoh: 0.001"></label>
-            <label>Harga limit (USDT)<input id="liveOrderPrice" type="number" min="0.00000001" step="any" inputmode="decimal" placeholder="Harga limit"></label>
-          </div>
-          <p class="live-limit-note" id="liveLimitNote">Backend memvalidasi batas notional, aset, dan selisih harga sebelum menyiapkan preview.</p>
-          <button class="button button-outline" id="livePreviewButton" type="button">Minta preview order</button>
-          <div class="live-preview" id="livePreview" hidden>
-            <b>Periksa rincian order</b>
-            <p id="livePreviewSummary"></p>
-            <small id="livePreviewExpiry"></small>
-            <label>Ketik <code>KIRIM ORDER LIVE</code> untuk menyetujui<input id="liveConfirmInput" type="text" autocomplete="off" placeholder="Frasa konfirmasi persis"></label>
-            <div class="live-actions"><button class="button button-primary" id="liveSubmitButton" type="button" disabled>Konfirmasi &amp; kirim order nyata</button><button class="button button-outline" id="liveCancelButton" type="button">Batalkan preview</button></div>
-          </div>
-          <div class="live-result" id="liveResult" role="status" aria-live="polite"></div>
+          <article class="panel book-panel" aria-labelledby="bookTitle">
+            <div class="panel-heading book-heading"><div><div class="section-kicker">LIKUIDITAS</div><h2 class="panel-title" id="bookTitle">Order book</h2></div><span class="book-status"><i></i><span id="bookStatus">Menunggu data</span></span></div>
+            <div class="book-columns" aria-hidden="true"><span>Harga(USDT)</span><span>Jumlah(ctr)</span><span>Total(USDT)</span></div>
+            <div class="book-list asks" id="bookAsks" aria-label="Order jual (ask)"></div>
+            <div class="book-midline"><b id="bookMid">—</b><span>Spread <span id="bookSpread">—</span></span></div>
+            <div class="book-list bids" id="bookBids" aria-label="Order beli (bid)"></div>
+            <div class="tape-heading"><div><div class="section-kicker">TRANSAKSI PUBLIK</div><h3>Transaksi terbaru</h3></div><span class="tape-live"><i></i> LIVE</span></div>
+            <div class="tape-columns" aria-hidden="true"><span>Harga</span><span>Jumlah(ctr)</span><span>Waktu</span></div>
+            <div class="recent-trades" id="recentTrades" aria-label="Transaksi pasar terbaru"></div>
+          </article>
         </div>
+
+        <aside class="right-rail" aria-label="Paper trading dan sinyal">
+          <article class="panel paper-panel" id="paper">
+            <div class="panel-heading"><div><div class="section-kicker">AKUN SIMULASI</div><h2 class="panel-title">Paper portfolio</h2></div><span class="paper-badge"><i></i> PAPER</span></div>
+            <p class="panel-subtitle">Saldo simulasi lokal di perangkat ini</p>
+            <div class="portfolio-total"><div><span class="output-caption">TOTAL EKUITAS</span><b id="equityValue">$10,000.00</b></div><div class="portfolio-pnl"><span class="output-caption">UNREALIZED P&amp;L</span><b id="pnlValue">$0.00</b></div></div>
+            <div class="portfolio-mini"><div><span>Saldo USDT</span><b id="cashValue">$10,000.00</b></div><div><span>Posisi aktif</span><b id="openPosition">Tidak ada</b></div></div>
+            <div class="paper-action-label"><span>EKSEKUSI PAPER</span><i aria-hidden="true"></i></div>
+            <button class="button button-primary execute-button" id="paperTradeBtn" type="button" disabled>Simulasikan sinyal</button>
+            <div class="paper-footnote" id="paperFootnote">Hanya berjalan pada sinyal BUY/SELL valid. Tidak mengirim order ke bursa.</div>
+            <div class="paper-safety"><span aria-hidden="true">✓</span>Eksekusi dan riwayat hanya untuk simulasi</div>
+          </article>
+
+          <article class="panel signal-panel" id="engine">
+            <div class="panel-heading"><div><div class="section-kicker">ANALISIS</div><h2 class="panel-title">Signal engine</h2></div><span class="engine-mark" aria-hidden="true">⌁</span></div>
+            <p class="panel-subtitle">RSI + sentimen manual · data fundamental ditampilkan terpisah</p>
+            <div class="signal-main"><div class="signal-gauge" id="signalGauge"><div class="gauge-inner"><span class="gauge-score" id="gaugeScore">—</span><span class="gauge-label">SKOR</span></div></div><div class="signal-result"><span class="signal-kicker">SIGNAL SAAT INI</span><b id="signalText" class="signal-hold">WAIT</b><small id="signalHint">Menghitung sinyal…</small></div></div>
+            <div class="score-breakdown"><div class="breakdown-row"><span>Skor teknikal<small>RSI(14) ternormalisasi</small></span><b id="taScore">—</b></div><div class="breakdown-row"><span>Sentimen manual<small>Bukan data fundamental</small></span><b id="faScoreDisplay">0.00</b></div></div>
+            <div class="signal-threshold"><span>SELL <b>−0.65</b></span><div class="threshold-track"><i class="threshold-center"></i><i id="thresholdMarker"></i></div><span>BUY <b>+0.65</b></span></div>
+            <div class="equation-note">S<sub>c</sub> = W<sub>ta</sub> · S<sub>ta</sub> + W<sub>m</sub> · S<sub>manual</sub></div>
+            <p class="signal-disclaimer">BUY/SELL/WAIT adalah indikator berbasis aturan, bukan kepastian hasil atau saran finansial.</p>
+          </article>
+          <article class="panel fundamentals-panel" id="fundamentals" aria-labelledby="fundamentalsTitle">
+            <div class="panel-heading"><div><div class="section-kicker">KONTEKS FUNDAMENTAL</div><h2 class="panel-title" id="fundamentalsTitle">Data kontrak OKX</h2></div><span class="tiny-chip">TERPISAH DARI SINYAL</span></div>
+            <div class="fundamental-grid">
+              <div class="fundamental-metric"><span>Funding prediksi</span><b id="fundingRate">—</b><small id="fundingNext">Sumber/waktu belum tersedia</small></div>
+              <div class="fundamental-metric"><span>Funding settlement</span><b id="settledFundingRate">—</b><small id="fundingSettledState">Data settlement belum tersedia</small></div>
+              <div class="fundamental-metric"><span>Open interest</span><b id="openInterestValue">—</b><small id="openInterestUnit">USD · kontrak belum diketahui</small></div>
+            </div>
+            <div class="fundamental-meta"><span id="fundingUpdatedAt">Funding diperbarui: —</span><span id="openInterestUpdatedAt">OI diperbarui: —</span></div>
+            <p class="fundamental-note">Funding dan open interest adalah konteks pasar derivatif, bukan valuasi fundamental token dan tidak mengubah sinyal. Market cap/supply aset: <b>belum tersedia (unknown)</b>. Nilai kosong tidak diestimasi.</p>
+            <div class="fundamental-sources"><a class="fundamental-source" href="https://www.okx.com/docs-v5/en/#rest-api-public-data-get-funding-rate" target="_blank" rel="noopener noreferrer">Dokumentasi funding</a><a class="fundamental-source" href="https://www.okx.com/docs-v5/en/#rest-api-public-data-get-open-interest" target="_blank" rel="noopener noreferrer">Dokumentasi open interest</a></div>
+          </article>
+        </aside>
       </section>
 
-      <section class="panel activity-panel">
-        <div class="panel-heading"><div><div class="panel-title">Recent activity</div><div class="panel-subtitle">Riwayat paper trade pada perangkat ini</div></div><button class="text-button" id="clearHistoryBtn">Bersihkan riwayat</button></div>
-        <div class="table-scroll"><table><thead><tr><th>WAKTU</th><th>ASET</th><th>AKSI</th><th>HARGA</th><th>UKURAN</th><th>REALIZED P&L</th><th>STATUS</th></tr></thead><tbody id="activityBody"><tr class="empty-row"><td colspan="7">Belum ada aktivitas. Tunggu data pasar lalu jalankan simulasi.</td></tr></tbody></table></div>
+      <section class="bottom-grid" aria-label="Kontrol risiko dan parameter sinyal">
+        <article class="panel controls-panel">
+          <div class="panel-heading"><div><div class="section-kicker">PARAMETER</div><h2 class="panel-title">Risiko &amp; sinyal</h2></div><span class="settings-icon" aria-hidden="true">⚙</span></div>
+          <p class="panel-subtitle">Pengaturan hanya memengaruhi simulasi lokal</p>
+          <div class="control-grid">
+            <label class="control-block"><span class="control-title">Sentimen manual <b id="faValue">0.00</b></span><span class="control-help">Input subjektif, bukan data fundamental · −1 bearish, +1 bullish</span><input id="faInput" type="range" min="-1" max="1" step="0.05" value="0" aria-label="Sentimen manual subjektif"><span class="range-ends"><span>−1 bearish</span><span>0 netral</span><span>+1 bullish</span></span></label>
+            <label class="control-block"><span class="control-title">Risiko per trade <b id="riskValueLabel">1.0%</b></span><span class="control-help">Target risiko dari ekuitas paper hingga stop ATR</span><input id="riskInput" type="range" min="0.25" max="2" step="0.25" value="1" aria-label="Risiko per trade"><span class="range-ends"><span>0.25%</span><span>1.0%</span><span>2.0%</span></span></label>
+            <label class="control-block"><span class="control-title">Leverage simulasi <b id="leverageValueLabel">1×</b></span><span class="control-help">Hanya sizing paper; tidak mengubah leverage akun OKX</span><input id="leverageInput" type="range" min="1" max="20" step="1" value="1" aria-label="Leverage simulasi"><span class="range-ends"><span>1×</span><span>maks. 20×</span></span></label>
+            <label class="control-block"><span class="control-title">Bobot teknikal <b id="taWeightLabel">70%</b></span><span class="control-help">Sisa bobot dialokasikan ke sentimen manual; funding/OI tidak masuk ke sinyal</span><input id="weightInput" type="range" min="0" max="100" step="5" value="70" aria-label="Bobot teknikal"><span class="range-ends"><span>0% TA</span><span>70% default</span><span>100% TA</span></span></label>
+            <div class="risk-output"><span class="output-caption">ESTIMASI POSISI</span><b id="positionSize">—</b><span id="riskAmount">Risiko nominal: —</span><span class="risk-notional" id="riskNotional">Notional — · margin estimasi —</span><div class="risk-foot"><span>SL <b id="riskSL">—</b></span><span>TP <b id="riskTP">—</b></span></div></div>
+          </div>
+          <div class="model-note"><span>i</span><span>Jumlah kontrak = risiko / (jarak stop × nilai kontrak), dibulatkan ke lot step OKX; dibatasi saldo paper × leverage simulasi. Notional dan margin adalah estimasi.</span></div>
+        </article>
+        <article class="panel live-panel" id="live">
+          <div class="panel-heading"><div><div class="section-kicker">AKUN &amp; EKSEKUSI</div><h2 class="panel-title">Koneksi OKX &amp; auto-trade</h2></div><span class="live-mode-badge disabled" id="liveModeBadge">NONAKTIF</span></div>
+          <div class="live-unavailable" id="liveUnavailable" role="status">Memeriksa status backend privat…</div>
+          <div class="live-form" id="liveForm" hidden>
+            <div class="live-warning"><b>Jalur akun privat:</b> koneksi ini hanya untuk tes dan pembacaan akun. Kredensial API hanya berada di server. Jika nantinya disiapkan, gunakan API key Demo khusus dengan izin Read + Trade, tanpa Withdraw; batasi IP bila tersedia. Paper portfolio tetap lokal dan terpisah.</div>
+            <div class="live-result" id="executionLockNote" role="status">Eksekusi akun dinonaktifkan oleh konfigurasi server.</div>
+            <div class="live-input-grid account-input-grid">
+              <label>Token akses backend privat<input id="liveToken" type="password" autocomplete="off" spellcheck="false" placeholder="Hanya sementara di halaman ini"></label>
+              <button class="button button-outline account-connect-button" id="accountConnectBtn" type="button">Tes koneksi akun</button>
+            </div>
+            <div class="live-result" id="accountStatus" role="status" aria-live="polite">Belum memeriksa akun privat.</div>
+            <div class="account-summary" id="accountSummary" hidden><span>Saldo tersedia <b id="accountAvailable">—</b></span><span>Ekuitas <b id="accountEquity">—</b></span><span>Posisi USDT Swap <b id="accountPositions">—</b></span></div>
+
+            <section class="auto-trader-box" id="autoTraderBox" hidden aria-labelledby="autoTraderTitle">
+              <div class="auto-trader-heading"><div><div class="section-kicker">MESIN SERVER-SIDE · POLLING 1 MENIT</div><h3 id="autoTraderTitle">Auto-trade RSI / ATR</h3></div><span class="live-mode-badge disabled" id="autoStateBadge">STOPPED</span></div>
+              <p class="live-limit-note">Strategi deterministik memakai crossing RSI 1H (&le;30 LONG / &ge;70 SHORT), sizing maksimal 1% saldo tersedia, notional dibatasi server, serta SL 1.5&times; ATR dan TP 2.5&times; ATR pada order. Hanya membuka saat tidak ada posisi/order di pair itu; bot tidak mengelola posisi manual. Tab boleh ditutup, tetapi hentikan bot dari sini atau endpoint server privat.</p>
+              <div class="auto-controls-grid">
+                <div class="auto-instrument-picker"><div><label for="autoInstrumentSearch">Cari pair aktif</label><div class="instrument-search-wrap auto-instrument-search-wrap"><input id="autoInstrumentSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Cari koin / pair" aria-label="Cari pair auto-trade" aria-autocomplete="list" aria-controls="autoInstrumentResults" aria-expanded="false" aria-describedby="autoInstrumentSearchStatus"><div class="instrument-results" id="autoInstrumentResults" role="listbox" aria-label="Hasil pencarian pair auto-trade" hidden></div></div><span class="sr-only" id="autoInstrumentSearchStatus" role="status" aria-live="polite"></span></div><label for="autoInstrument">Pair terpilih<select id="autoInstrument"></select></label></div>
+                <label>Risiko per trade<input id="autoRiskPct" type="number" min="0.25" max="1" step="0.25" value="0.5" inputmode="decimal"></label>
+                <label>Konfirmasi mode<input id="autoConfirmInput" type="text" autocomplete="off" placeholder="Frasa konfirmasi sesuai mode"></label>
+              </div>
+              <div class="auto-actions"><button class="button button-primary" id="autoStartBtn" type="button" disabled>Mulai auto-trade</button><button class="button button-outline" id="autoStopBtn" type="button" hidden>Hentikan bot</button><button class="button button-outline" id="autoRefreshBtn" type="button">Perbarui status</button></div>
+              <div class="auto-status" id="autoStatus" role="status" aria-live="polite">Masukkan token backend dan hubungkan akun untuk melihat status.</div>
+            </section>
+
+            <details class="manual-live-details" id="manualLiveDetails" hidden>
+              <summary>Order limit manual (konfirmasi per order)</summary>
+              <div class="live-warning"><b>Perhatian:</b> order manual dapat memakai dana nyata. Tidak memasang SL/TP otomatis. Tinjau preview dan ketik frasa persis sebelum mengirim.</div>
+              <div class="live-input-grid">
+                <label>Sisi order<select id="liveOrderSide"><option value="buy">BUY</option><option value="sell">SELL</option></select></label>
+                <label>Mode margin<select id="liveOrderMode"><option value="isolated">ISOLATED</option><option value="cross">CROSS</option></select></label>
+                <label>Ukuran (kontrak)<input id="liveOrderSize" type="number" min="0.00000001" step="any" inputmode="decimal" placeholder="Jumlah kontrak"></label>
+                <label>Harga limit (USDT)<input id="liveOrderPrice" type="number" min="0.00000001" step="any" inputmode="decimal" placeholder="Harga limit"></label>
+              </div>
+              <p class="live-limit-note" id="liveLimitNote">Gateway memeriksa instrumen Swap USDT, nilai kontrak, min-size, lot-step, price-tick, notional, dan harga sebelum menyiapkan preview.</p>
+              <button class="button button-outline" id="livePreviewButton" type="button">Minta preview order</button>
+              <div class="live-preview" id="livePreview" hidden>
+                <b>Periksa rincian order</b><p id="livePreviewSummary"></p><small id="livePreviewExpiry"></small>
+                <label>Ketik <code>KIRIM ORDER LIVE</code> untuk menyetujui<input id="liveConfirmInput" type="text" autocomplete="off" placeholder="Frasa konfirmasi persis"></label>
+                <div class="live-actions"><button class="button button-primary" id="liveSubmitButton" type="button" disabled>Konfirmasi &amp; kirim order</button><button class="button button-outline" id="liveCancelButton" type="button">Batalkan preview</button></div>
+              </div>
+              <div class="live-result" id="liveResult" role="status" aria-live="polite"></div>
+            </details>
+          </div>
+        </article>
       </section>
-      <footer class="footer"><span>ORBITAL QUANT TERMINAL <i>·</i> PAPER MODE</span><span>Data pasar dari OKX · Bukan saran investasi</span></footer>
+
+      <section class="panel activity-panel" id="activity" aria-labelledby="activityTitle">
+        <div class="panel-heading"><div><div class="section-kicker">CATATAN SIMULASI</div><h2 class="panel-title" id="activityTitle">Riwayat paper trade</h2><p class="panel-subtitle">Disimpan lokal pada perangkat ini</p></div><button class="text-button" id="clearHistoryBtn" type="button">Bersihkan riwayat</button></div>
+        <div class="table-scroll"><table><thead><tr><th>WAKTU</th><th>ASET</th><th>AKSI</th><th>HARGA</th><th>UKURAN</th><th>REALIZED P&amp;L</th><th>STATUS</th></tr></thead><tbody id="activityBody"><tr class="empty-row"><td colspan="7">Belum ada aktivitas paper. Sinyal hanya dapat disimulasikan saat valid.</td></tr></tbody></table></div>
+      </section>
+      <footer class="footer"><span><b>ORBITAL</b> <i>·</i> PAPER MODE</span><span>Data pasar publik · Bukan saran investasi · Tidak berafiliasi dengan OKX</span></footer>
     </main>
   </div>
+
   <dialog class="install-dialog" id="installHelp" aria-labelledby="installHelpTitle">
     <h2 id="installHelpTitle">Pasang Orbital</h2>
-    <p>Pasang dari URL HTTPS halaman ini. Membuka aplikasi tidak mengaktifkan order nyata.</p>
+    <p>Pasang dari URL HTTPS halaman ini. Aplikasi memakai katalog perpetual yang sama dengan versi web; memasang tidak mengaktifkan order nyata.</p>
     <p><b>Android / Chrome:</b> menu ⋮ → Instal aplikasi atau Tambahkan ke layar utama.</p>
     <p><b>iPhone / iPad:</b> buka di Safari → Bagikan → Tambahkan ke Layar Utama.</p>
     <p><b>Desktop Chrome / Edge:</b> gunakan ikon instalasi di bilah alamat atau menu browser → Instal aplikasi.</p>
