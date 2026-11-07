@@ -3,6 +3,11 @@
   "name": "orbital-okx-terminal",
   "main": "worker/index.js",
   "compatibility_date": "2026-11-06",
+  "vars": {
+    "ORBITAL_TRADING_MODE": "demo",
+    "ORBITAL_TRADING_ENABLED": "false",
+    "ORBITAL_AUTO_TRADING_ENABLED": "false"
+  },
   "assets": {
     "directory": "public",
     "binding": "ASSETS",
@@ -13,6 +18,10 @@
       {
         "name": "ORBITAL_ORDER_GUARD",
         "class_name": "OrderGuard"
+      },
+      {
+        "name": "ORBITAL_AUTO_TRADER",
+        "class_name": "AutoTrader"
       }
     ]
   },
@@ -20,6 +29,10 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["OrderGuard"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["AutoTrader"]
     }
   ]
 }

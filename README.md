@@ -1,75 +1,92 @@
-# Orbital Quant Terminal
+# Orbital OKX Perpetual Terminal
 
-PWA berbahasa Indonesia untuk melihat pasar spot OKX, menghitung indikator teknikal dan skor sentimen manual, mencoba strategi dengan paper portfolio lokal, serta menyediakan kerangka gateway order privat yang **mati secara default**.
+PWA berbahasa Indonesia untuk memantau **OKX USDT-settled linear perpetual swaps**, menganalisis RSI/ATR dan skor sinyal, serta mencoba ukuran posisi dalam kontrak melalui paper trading lokal. Ini bukan aplikasi resmi OKX dan bukan saran investasi.
 
-## Fitur
+## Yang tersedia
 
-- Proxy same-origin di Cloudflare Worker mengambil ticker dan candlestick OKX untuk BTC-USDT, ETH-USDT, dan SOL-USDT. Browser tidak perlu memanggil domain OKX langsung. Backend memakai domain REST resmi yang direkomendasikan OKX, `openapi.okx.com` ([pengumuman OKX](https://www.okx.com/docs-v5/log_en/#2026-05-20)).
-- Grafik candlestick dengan pilihan 15 menit, 1 jam, 4 jam, dan 1 hari; indikator RSI(14) dan ATR(14) memakai smoothing Wilder.
-- Skor teknikal `(50 - RSI) / 50`, ditambah skor sentimen fundamental yang dimasukkan manual, dengan bobot awal 70% TA dan ambang BUY/SELL ±0.65. Ini bukan model prediksi otomatis atau saran investasi.
-- Sizing paper berdasarkan risiko 0.25–2% dari ekuitas dan stop 1.5× ATR; simulasi long-only tersimpan hanya di browser setempat. Tidak ada transaksi bursa dari paper trading.
-- PWA dapat dipasang. Shell halaman bisa dibuka offline setelah dimuat, tetapi service worker tidak menyimpan respons API. Proxy edge hanya menahan data publik sebentar (ticker 30 detik, candles 60 detik) untuk mengurangi rate limit; jam update di layar memakai timestamp sumber OKX. Data akun dan order tidak di-cache.
-- Gateway order spot **limit saja** untuk tiga aset yang diizinkan. Jika backend dikonfigurasi secara terpisah, halaman meminta token backend sementara, membuat preview bertanda tangan yang berlaku 90 detik, memvalidasi min-size/lot-step/price-tick dari OKX, lalu menunggu pengguna mengetik `KIRIM ORDER LIVE` dan menekan tombol kirim. Durable Object SQLite menandai permintaan sekali-pakai dan menolak pengulangan; status hasil disimpan agar respons yang hilang tidak mengirim order kedua. Tidak ada auto-trading.
+- **Katalog dinamis:** backend mengambil semua instrumen SWAP aktif yang diselesaikan dalam USDT dan bertipe linear dari endpoint publik OKX. Tidak ada daftar BTC/ETH/SOL yang dikunci di frontend. Pencarian menyaring katalog, kontrak yang nilainya berbeda ditampilkan dengan ukuran/minimum/lot/tick masing-masing, dan katalog diperbarui berkala. Kontrak inverse dan instrumen yang tidak aktif tidak ikut ditampilkan.
+- **Pasar Swap:** ticker, candle 15m/1H/4H/1D, order book, transaksi, funding rate, dan open interest diambil melalui proxy Worker same-origin. Kuantitas order book/tape dan order memakai satuan kontrak.
+- **Chart TradingView:** candlestick interaktif memakai Lightweight Charts 5.2.0 yang dibundel lokal, bukan feed chart TradingView. Data candle tetap berasal dari OKX; chart mendukung zoom/geser, crosshair OHLC, penanda BUY/SELL, dan garis estimasi entry/SL/TP. Library mengikuti Apache-2.0 serta atribusi TradingView di UI dan berkas NOTICE.
+- **Analisis teknikal:** RSI(14) dan ATR(14) memakai smoothing Wilder pada candle tertutup; skor teknikal dinormalisasi dari RSI lalu dikombinasikan dengan input sentimen manual. Bobot TA awal 70%, ambang sinyal ±0,65. BUY/SELL/WAIT adalah aturan indikator eksperimental, bukan kepastian atau prediksi hasil.
+- **Konteks fundamental kontrak:** panel terpisah menunjukkan funding prediksi/settlement dan open interest dengan timestamp dari OKX Public API. Funding positif berarti long membayar short sesuai dokumentasi OKX. Metrik ini menggambarkan posisi/pembiayaan derivatif, bukan valuasi fundamental token; market cap dan supply belum tersedia (unknown) dan tidak ikut menentukan skor. Jika endpoint gagal atau field kosong, UI menunjukkan —, bukan estimasi.
+- **Sizing risiko:** ukuran kontrak dibulatkan turun ke lot step OKX dan memperhatikan `ctVal`, minimum order, target risiko paper, jarak stop 1,5× ATR, serta batas collateral × leverage simulasi. Target take-profit paper 2,5× ATR. UI menampilkan kontrak, estimasi risiko, notional, dan margin. Leverage ini hanya untuk simulasi lokal; tidak mengubah pengaturan akun OKX.
+- **Paper long/short:** tombol simulasi membuka posisi sesuai sinyal BUY/SELL atau menutup posisi paper yang berlawanan. Saldo dan riwayat hanya disimpan di browser/perangkat yang dipakai. Paper tidak memodelkan biaya, funding, likuidasi, slippage, atau protective order.
+- **Tampilan:** antarmuka web dan mode PWA yang sama pada desktop/mobile, dengan chart TradingView yang disimpan lokal untuk penggunaan offline setelah shell dimuat, ikon koin eksternal dan fallback inisial bila ikon tidak tersedia. Preview menampilkan data pasar publik saja.
+- **Koneksi akun privat (read-only):** jika dikonfigurasi pada Worker privat, backend dapat menguji API OKX dan menampilkan saldo USDT serta posisi Swap yang sudah ada. Jalur baca hanya memerlukan kredensial server dan token pemilik; tidak bergantung pada flag eksekusi. API key/secret/passphrase hanya dibaca Worker; frontend tidak menerima atau menyimpan kredensial itu.
+- **Kode eksekusi manual/otomatis:** tersedia tetapi terkunci pada konfigurasi read-only. Quote/order manual, auto-start, dan alarm Durable Object tetap fail-closed kecuali flag eksekusi terkait diaktifkan secara eksplisit pada server. Tidak ada strategi atau bot yang dimulai oleh perubahan ini.
 
-## Jalankan lokal
+## Analisis dan unit kontrak
 
-Gunakan Wrangler agar proxy Worker dan aset PWA berjalan bersama. Folder `public/` hanya berisi aset yang dimuat halaman; source Worker ada di `worker/`:
+Dokumentasi resmi OKX menjelaskan instrumen perpetual melalui [Get instruments](https://www.okx.com/docs-v5/en/#rest-api-public-data-get-instruments), termasuk `ctVal`, `ctValCcy`, `minSz`, `lotSz`, dan `tickSz`. Pada kontrak linear, notional bergantung pada jumlah kontrak × nilai kontrak × harga; harga pada preview order adalah estimasi berdasarkan harga limit.
 
-```bash
-npx --yes wrangler@4.102.0 dev worker/index.js --local --compatibility-date 2026-06-24 --assets public
+Rumus sizing paper yang digunakan:
+
+```text
+risiko target = ekuitas paper × persentase risiko
+jarak stop = ATR(14) × 1,5
+kontrak = floor ke lot step(min(risiko target / (jarak stop × ctVal), collateral × leverage / (harga × ctVal)))
+notional estimasi = kontrak × ctVal × harga
+margin estimasi = notional / leverage simulasi
 ```
 
-Buka URL localhost yang ditampilkan Wrangler. Alternatif server statis biasa dapat menampilkan antarmuka, tetapi `/api/*` memerlukan Worker dan data OKX tidak akan tersedia tanpa proxy.
-Tanggal lokal di atas adalah batas runtime `workerd` yang tersedia pada alat pengujian ini. Cloudflare menolak tanggal `2026-11-07` sebagai masa depan karena deploy berlangsung pada `2026-11-06` UTC; preview memakai `2026-11-06` sebagai tanggal kompatibilitas terdekat yang diterima.
+Sizing yang ditampilkan bukan jumlah yang dijamin dapat dibuka pada akun: exchange dapat menerapkan tier risiko, margin, fee, funding, posisi lain, dan aturan akun. Paper stop/target juga tidak memasang order SL/TP di OKX.
 
-Jalankan pemeriksaan dasar tanpa mengubah konfigurasi akun:
+## Trading dan keamanan
+
+**Status saat ini:** Worker Orbital sudah dideploy ke akun Cloudflare baru di [orbital-okx-terminal.erlanggarangga564.workers.dev](https://orbital-okx-terminal.erlanggarangga564.workers.dev). Halaman aplikasi dan proxy data pasar publik dapat diakses dari internet. Koneksi akun privat **belum dikonfigurasi**: tidak ada token admin atau kredensial API OKX pada Worker, sehingga saldo/posisi akun tidak dapat dibaca. Tidak ada API key di frontend, repo, atau browser storage; jangan memasukkan token atau kredensial pada URL publik.
+
+Worker dideploy dengan mode **demo** dan `ORBITAL_TRADING_ENABLED=false`, `ORBITAL_AUTO_TRADING_ENABLED=false`. Mode demo saja tidak mengizinkan eksekusi: jalur order memerlukan flag trading yang aktif, Durable Object guard, dan challenge; auto-trading memerlukan tambahan flag serta acknowledgement eksplisit. Semua sakelar eksekusi tetap mati. Dokumentasi protokol: [OKX API v5 — Place order](https://www.okx.com/docs-v5/en/#rest-api-trade-post-place-order), [autentikasi REST](https://www.okx.com/docs-v5/en/#rest-authentication), dan [Get balance](https://www.okx.com/docs-v5/en/#rest-api-account-get-balance).
+
+### Konfigurasi yang dimaksudkan untuk deployment read-only
+
+Koneksi baca akun baru dapat diaktifkan setelah pemilik menyiapkan token admin dan kredensial OKX Demo sebagai **Worker secrets**. Sampai itu dilakukan, posture deployment read-only mempertahankan:
+
+   ```text
+   ORBITAL_TRADING_MODE=demo
+   ORBITAL_TRADING_ENABLED=false
+   ORBITAL_AUTO_TRADING_ENABLED=false
+   ```
+
+Untuk endpoint baca, Worker memerlukan `ORBITAL_ADMIN_TOKEN` minimal 32 karakter dan kredensial OKX server-side; jangan masukkan API secret di browser, file `.env` yang di-commit, repo, log, atau chat. Jika nanti pemilik membuat API key, gunakan **Demo Trading** dengan izin **Read + Trade**, tanpa **Withdraw**, dan pembatasan IP bila tersedia. Status aman akan memisahkan `accountReadAvailable` dari `tradingAvailable:false` dan `autoTradingAvailable:false`. Jangan mengaktifkan flag eksekusi, acknowledgement, strategi, parameter risiko, atau bot tanpa otorisasi baru yang eksplisit. Saat ini tidak ada koneksi akun maupun langkah aktivasi order.
+
+Mode live dan `ORBITAL_LIVE_ACK=I_ACCEPT_REAL_TRADING_RISK` tidak termasuk cakupan konfigurasi ini dan tidak boleh diaktifkan.
+
+### Batasan dan proteksi auto-trade
+
+- Satu bot global per deployment dan satu pair yang dipilih; hanya crossing RSI pada candle 1H tertutup. Paper portfolio tetap independen.
+- Satu posisi/order yang sudah ada pada pair itu menyebabkan bot menunggu; bot tidak membalik, menambah, atau mengelola posisi manual. SL/TP hanya dilampirkan pada order entry otomatis.
+- Auto size memakai isolated mode, saldo tersedia, ATR, lot step/minimum, max notional server, dan limit eksposur konservatif. Leverage akun tidak dibaca sebagai target dan tidak pernah diubah.
+- Stop menunggu permintaan bursa yang sedang berlangsung; hasil yang tidak pasti menghentikan bot. Periksa riwayat/order OKX sebelum memulai lagi.
+- Tidak ada order bursa nyata atau demo yang dikirim oleh pengujian; semua jalur order diuji dengan `fetch` tiruan.
+
+## Menjalankan lokal dan tes
+
+Gunakan Wrangler agar Worker proxy dan PWA tersedia bersama:
+
+```bash
+npx --yes wrangler@4.102.0 dev worker/index.js --local --compatibility-date 2026-11-06 --assets public
+```
+
+Untuk tes UI, jalankan server statis di terminal terpisah, lalu tes memakai fixture sintetis:
+
+```bash
+python3 -m http.server 5173 --directory public
+python3 tests/ui-smoke.py
+```
+
+Tes lainnya:
 
 ```bash
 node --input-type=module --check < public/app.js
 node --input-type=module --check < worker/index.js
 node tests/worker-smoke.mjs
 node tests/app-logic.mjs
+node tests/market-client.mjs
+node tests/pwa-cache.mjs
 ```
 
-Tes gateway menggunakan kredensial palsu dan `fetch` tiruan untuk memeriksa signing, validasi, serta replay. Tes ini tidak mengirim order ke OKX dan bukan pengganti uji pada akun demo sungguhan.
+Tes gateway memakai kredensial palsu dan `fetch` tiruan; tidak menghubungi akun OKX dan tidak mengirim order. Tes UI memakai Chromium lokal dan tidak menghubungi API bursa.
 
-## Deployment preview
+## Preview
 
-Preview sementara terbaru: https://orbital-okx-terminal.dune-grandiflora.workers.dev
-
-Folder `public/` adalah satu-satunya folder aset yang perlu dideploy; jangan deploy root repo. Preview statis menggunakan perintah berikut di lingkungan tanpa kredensial Cloudflare:
-
-```bash
-npx --yes wrangler@4.102.0 deploy worker/index.js --temporary --name orbital-okx-terminal --compatibility-date 2026-11-06 --assets public
-```
-
-URL preview bersifat publik: siapa pun yang memiliki tautan dapat membuka aplikasi. Deployment preview ini tidak memiliki konfigurasi live-trading. `GET /api/status` harus melaporkan `tradingAvailable: false`; indikator itu memastikan halaman tidak menampilkan form order yang aktif.
-
-Tombol **Pasang aplikasi** membuka prompt native bila browser menyediakannya, atau panduan pemasangan. Di Android gunakan menu Chrome → Instal aplikasi / Tambahkan ke layar utama; di iOS buka halaman di Safari → Bagikan → Tambahkan ke Layar Utama. Pemasangan tidak mengaktifkan trading dan data paper tetap per perangkat.
-
-Jika OKX membalas rate limit `50011`, proxy mencoba satu endpoint publik resmi alternatif: `history-candles` untuk riwayat dan `tickers?instType=SPOT` yang difilter kembali ke instrumen yang diminta. Jika keduanya gagal, aplikasi menampilkan data tidak tersedia dan mematikan paper execution; tidak ada harga palsu atau fallback ke bursa lain.
-
-## Mengaktifkan gateway pada deployment privat yang dikelola pemilik
-
-Jangan mengaktifkan trading pada URL preview publik. Untuk deployment privat terpisah, siapkan Cloudflare Access atau pembatasan akses yang sesuai, simpan seluruh nilai berikut sebagai **Worker secrets** (bukan di repo, HTML, JavaScript, atau `localStorage`), dan gunakan API key OKX khusus trading dengan izin penarikan dimatikan serta IP allowlist bila tersedia:
-
-- `ORBITAL_TRADING_ENABLED=true` sebagai variable Worker.
-- `ORBITAL_TRADING_MODE=demo` untuk lingkungan demo (default aman). Semua permintaan order demo diberi header simulated trading OKX.
-- Binding Durable Object `ORBITAL_ORDER_GUARD` disediakan oleh `wrangler.jsonc`; jangan menghapus binding/migrasi SQLite karena endpoint order memerlukan proteksi idempotensi.
-- `ORBITAL_ADMIN_TOKEN`: token acak minimal 32 karakter; token ini diminta oleh form aplikasi dan hanya berada di memori halaman selama digunakan.
-- `ORBITAL_CHALLENGE_SECRET`: secret acak terpisah minimal 32 karakter untuk menandatangani preview order.
-- `OKX_API_KEY`, `OKX_API_SECRET`, dan `OKX_API_PASSPHRASE`: kredensial disimpan hanya sebagai Worker secrets.
-- `ORBITAL_MAX_NOTIONAL_USDT`: batas order opsional; default 25 USDT dan nilai apa pun dibatasi keras maksimum 100 USDT per order.
-
-Mode demo harus dites dahulu dengan akun demo OKX. Mengubah `ORBITAL_TRADING_MODE` ke `live` memerlukan secret tambahan `ORBITAL_LIVE_ACK=I_ACCEPT_REAL_TRADING_RISK`. Ini sengaja menjadi langkah terpisah dan tidak boleh dilakukan pada preview publik. Walau mode live aktif, backend membatasi order ke spot limit, tiga instrumen tersebut, maksimum notional, dan selisih harga maksimal 10% dari harga pasar. Order hanya terkirim setelah pengguna meminta preview, memeriksa detail, memasukkan frasa konfirmasi, dan menekan tombol konfirmasi.
-
-Langkah konfigurasi ini belum dijalankan pada URL preview. Tidak ada API key OKX yang tersedia/tersimpan di aplikasi, tidak ada order nyata yang dikirim, dan tidak ada klaim bahwa trading live siap digunakan. Jangan menganggap batasan ini sebagai jaminan keuntungan atau pengganti pemeriksaan transaksi di OKX.
-
-## Keamanan dan batasan
-
-- Backend order hanya diaktifkan jika flag aktivasi, token owner, challenge secret, dan tiga kredensial OKX tersedia. Mode live membutuhkan secret persetujuan tambahan.
-- Aplikasi publik tidak dapat mengenali identitas pemilik hanya dari tautan; karena itu jangan mengaktifkan Worker berisi kredensial trading di deployment publik tanpa kontrol akses tambahan. Rahasia token aplikasi bukan pengganti Cloudflare Access, pembatasan jaringan, atau keamanan perangkat.
-- Endpoint proxy membatasi metode, instrumen, dan interval yang diterima; endpoint order tidak menawarkan withdrawal, transfer, derivatif, leverage, market order, atau strategi otomatis.
-- Level SL/TP dan kontrol risiko pada dashboard adalah estimasi paper, bukan protective order aktif. Gateway live mengirim order limit manual tanpa SL/TP otomatis; pemilik tetap harus memantau dan mengelola order langsung di OKX.
-- Paper trading dan riwayat disimpan lokal pada browser/perangkat ini. Menghapus data situs dapat menghapusnya.
-- Harga, indikator, sinyal, sizing, dan simulasi adalah untuk eksperimen. Hasil simulasi tidak membuktikan strategi akan menguntungkan.
+Preview sementara yang lama tetap tersedia di https://orbital-okx-preview.tiny-scilla.workers.dev dan hanya memakai data pasar publik/paper. Deployment akun baru ada di URL Workers di atas; Durable Objects terikat pada Worker itu, tetapi belum menyimpan state atau rahasia koneksi akun. Tidak ada API key Demo dibuat atau rahasia OKX diunggah. PWA dan paper portfolio lama pada origin lain tidak berpindah otomatis.
