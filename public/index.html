@@ -29,6 +29,8 @@
       <div class="top-actions">
         <span class="connection" aria-live="polite"><i id="connectionDot"></i><span id="connectionText">Menyambungkan</span></span>
         <span class="terminal-mode"><i aria-hidden="true"></i><span id="terminalModeText">DATA PUBLIK · PAPER</span></span>
+        <button class="button button-outline" id="themeToggle" type="button" aria-pressed="false">Tema terang</button>
+        <button class="button button-outline" id="updateAppBtn" type="button" hidden>Perbarui aplikasi</button>
         <button class="button button-install" id="installBtn" type="button">Pasang aplikasi</button>
       </div>
     </header>
@@ -37,7 +39,7 @@
       <section class="market-heading" aria-label="Pasar terpilih">
         <div class="pair-block">
           <div class="pair-mark" id="assetGlyph" aria-hidden="true"><span class="coin-fallback">BTC</span></div>
-          <div class="pair-name"><div class="pair-title"><label class="sr-only" for="assetSelect">Pilih perpetual USDT</label><select id="assetSelect" aria-label="Pilih perpetual USDT"><option value="">Memuat instrumen OKX…</option></select><span class="contract-tag" id="pairType">SWAP</span></div><div class="pair-meta"><span class="pair-caption" id="pairCaption">USDT perpetual · memuat katalog</span><span class="instrument-count" id="instrumentCount">Memuat pair…</span></div><div class="instrument-search-wrap"><label class="sr-only" for="instrumentSearch">Cari koin atau pair perpetual USDT</label><input id="instrumentSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Cari koin / pair (mis. BTC)" aria-label="Cari instrumen perpetual" aria-autocomplete="list" aria-controls="instrumentResults" aria-expanded="false" aria-describedby="instrumentSearchStatus"><div class="instrument-results" id="instrumentResults" role="listbox" aria-label="Hasil pencarian instrumen" hidden></div></div><span class="sr-only" id="instrumentSearchStatus" role="status" aria-live="polite"></span><span class="contract-value" id="contractValue">Nilai kontrak —</span></div>
+          <div class="pair-name"><div class="pair-title"><label class="sr-only" for="assetSelect">Pilih perpetual USDT</label><select id="assetSelect" aria-label="Pilih perpetual USDT"><option value="">Memuat instrumen OKX…</option></select><span class="contract-tag" id="pairType">SWAP</span><button class="text-button watch-toggle" id="watchToggle" type="button" aria-pressed="false" aria-label="Tambahkan pair ke watchlist">☆</button></div><div class="pair-meta"><span class="pair-caption" id="pairCaption">USDT perpetual · memuat katalog</span><span class="instrument-count" id="instrumentCount">Memuat pair…</span></div><div class="instrument-search-wrap"><label class="sr-only" for="instrumentSearch">Cari koin atau pair perpetual USDT</label><input id="instrumentSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Cari koin / pair (mis. BTC)" aria-label="Cari instrumen perpetual" aria-autocomplete="list" aria-controls="instrumentResults" aria-expanded="false" aria-describedby="instrumentSearchStatus"><div class="instrument-results" id="instrumentResults" role="listbox" aria-label="Hasil pencarian instrumen" hidden></div></div><span class="sr-only" id="instrumentSearchStatus" role="status" aria-live="polite"></span><label class="watchlist-label">Watchlist <select id="watchlistSelect" aria-label="Pilih pair favorit"><option value="">Belum ada favorit</option></select></label><span class="contract-value" id="contractValue">Nilai kontrak —</span></div>
         </div>
         <div class="quote-primary"><span class="quote-label">Harga terakhir <small>USDT</small></span><strong id="priceValue">—</strong><span class="change-pill neutral" id="changeValue">—</span></div>
         <div class="quote-stat"><span>Tertinggi 24 jam</span><b id="marketHigh">—</b></div>
@@ -52,7 +54,8 @@
         <span class="safety-context">PAPER MODE</span>
       </section>
 
-      <section class="market-strip" aria-label="Ringkasan indikator pasar">
+      <div class="market-error" id="marketError" role="status" aria-live="polite" hidden><span id="marketErrorText"></span><button class="button button-outline" id="retryMarketBtn" type="button">Coba lagi</button></div>
+      <section class="market-strip" id="marketStrip" aria-label="Ringkasan indikator pasar" aria-busy="false">
         <article class="metric-card"><div class="metric-top"><span class="metric-label">RSI <span class="muted">/ 14</span></span><span class="tiny-chip">TEKNIKAL</span></div><div class="metric-value" id="rsiValue">—</div><div class="metric-foot"><span class="micro-bar"><i id="rsiBar"></i></span><span class="metric-caption" id="rsiState">Memuat indikator</span></div></article>
         <article class="metric-card score-card"><div class="metric-top"><span class="metric-label">SKOR KOMPOSIT</span><span class="tiny-chip">TA + SENTIMEN</span></div><div class="metric-value" id="scoreValue">—</div><div class="metric-foot"><span class="score-state" id="scoreState">Menunggu data</span><span class="metric-caption">−1.00 s/d +1.00</span></div></article>
         <article class="metric-card"><div class="metric-top"><span class="metric-label">VOLATILITAS <span class="muted">/ ATR</span></span><span class="tiny-chip">14 PERIODE</span></div><div class="metric-value" id="atrValue">—</div><div class="metric-foot"><span class="metric-caption">Stop dinamis: <b id="stopValue">—</b></span></div></article>
@@ -63,7 +66,7 @@
         <div class="market-workspace">
           <article class="panel chart-panel" aria-labelledby="chartTitle">
             <div class="panel-heading chart-heading"><div><div class="section-kicker">GRAFIK PASAR</div><div class="chart-title-row"><h1 class="panel-title" id="chartTitle">Struktur harga</h1><span class="chart-asset" id="chartAsset">BTC-USDT-SWAP</span><span class="live-dot" aria-label="Data publik"></span></div></div><div class="timeframe-group" role="group" aria-label="Rentang grafik"><button class="timeframe" data-bar="15m" type="button">15m</button><button class="timeframe selected" data-bar="1H" type="button" aria-pressed="true">1H</button><button class="timeframe" data-bar="4H" type="button">4H</button><button class="timeframe" data-bar="1D" type="button">1D</button></div></div>
-            <div class="chart-toolbar"><span><i class="toolbar-dot"></i> Candlestick OHLC</span><span>Pasangan kuotasi <b>USDT</b></span><span class="chart-ohlc" id="chartOhlc">O — H — L — C —</span></div>
+            <div class="chart-toolbar"><span><i class="toolbar-dot"></i> Candlestick OHLC</span><span>Pasangan kuotasi <b>USDT</b></span><div class="chart-overlays" role="group" aria-label="Indikator visual"><button type="button" data-overlay="ema" aria-label="Tampilkan EMA 20 di chart" aria-pressed="false">EMA</button><button type="button" data-overlay="bollinger" aria-label="Tampilkan Bollinger Bands di chart" aria-pressed="false">BB</button><button type="button" data-overlay="volume" aria-label="Tampilkan volume di chart" aria-pressed="false">VOL</button></div><span class="chart-ohlc" id="chartOhlc">O — H — L — C —</span></div>
             <div class="chart-wrap"><div id="priceChart" role="img" aria-label="Grafik candlestick TradingView untuk pasar terpilih"></div><div class="chart-tooltip" id="chartTooltip" hidden></div><div class="chart-empty" id="chartEmpty" hidden>Belum ada data grafik. Coba perbarui.</div></div>
             <div class="chart-legend"><span><i class="legend-dot up"></i>Naik</span><span><i class="legend-dot down"></i>Turun</span><span class="chart-source">Data: OKX API · chart: <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">TradingView Lightweight Charts</a></span></div>
           </article>
@@ -74,7 +77,7 @@
             <div class="book-list asks" id="bookAsks" aria-label="Order jual (ask)"></div>
             <div class="book-midline"><b id="bookMid">—</b><span>Spread <span id="bookSpread">—</span></span></div>
             <div class="book-list bids" id="bookBids" aria-label="Order beli (bid)"></div>
-            <div class="tape-heading"><div><div class="section-kicker">TRANSAKSI PUBLIK</div><h3>Transaksi terbaru</h3></div><span class="tape-live"><i></i> LIVE</span></div>
+            <div class="tape-heading"><div><div class="section-kicker">TRANSAKSI PUBLIK</div><h3>Transaksi terbaru</h3></div><span class="tape-live"><i></i> POLLING · 15S</span></div>
             <div class="tape-columns" aria-hidden="true"><span>Harga</span><span>Jumlah(ctr)</span><span>Waktu</span></div>
             <div class="recent-trades" id="recentTrades" aria-label="Transaksi pasar terbaru"></div>
           </article>
@@ -88,28 +91,30 @@
             <div class="portfolio-mini"><div><span>Saldo USDT</span><b id="cashValue">$10,000.00</b></div><div><span>Posisi aktif</span><b id="openPosition">Tidak ada</b></div></div>
             <div class="paper-action-label"><span>EKSEKUSI PAPER</span><i aria-hidden="true"></i></div>
             <button class="button button-primary execute-button" id="paperTradeBtn" type="button" disabled>Simulasikan sinyal</button>
-            <div class="paper-footnote" id="paperFootnote">SWAP paper: BUY → LONG / SELL → SHORT pada sinyal valid. Tidak mengirim order ke bursa.</div>
+            <div class="paper-footnote" id="paperFootnote">SIMULASI LOKAL, BUKAN ORDER OKX/NYATA. BUY → LONG / SELL → SHORT pada SWAP. Posisi baru memodelkan biaya asumsi dan memeriksa SL/TP saat data harga diperbarui; bukan eksekusi terjamin.</div>
             <div class="paper-safety"><span aria-hidden="true">✓</span>Eksekusi dan riwayat hanya untuk simulasi</div>
           </article>
 
           <article class="panel signal-panel" id="engine">
             <div class="panel-heading"><div><div class="section-kicker">ANALISIS</div><h2 class="panel-title">Signal engine</h2></div><span class="engine-mark" aria-hidden="true">⌁</span></div>
-            <p class="panel-subtitle">RSI + sentimen manual · data fundamental ditampilkan terpisah</p>
+            <p class="panel-subtitle">RSI + sentimen manual · faktor derivatif dan filter teknikal opsional</p>
             <div class="signal-main"><div class="signal-gauge" id="signalGauge"><div class="gauge-inner"><span class="gauge-score" id="gaugeScore">—</span><span class="gauge-label">SKOR</span></div></div><div class="signal-result"><span class="signal-kicker">SIGNAL SAAT INI</span><b id="signalText" class="signal-hold">WAIT</b><small id="signalHint">Menghitung sinyal…</small></div></div>
-            <div class="score-breakdown"><div class="breakdown-row"><span>Skor teknikal<small>RSI(14) ternormalisasi</small></span><b id="taScore">—</b></div><div class="breakdown-row"><span>Sentimen manual<small>Bukan data fundamental</small></span><b id="faScoreDisplay">0.00</b></div></div>
+            <p class="signal-reason" id="signalReason" aria-live="polite">Menunggu data tertutup untuk menjelaskan sinyal.</p>
+            <div class="score-breakdown"><div class="breakdown-row"><span>Skor teknikal<small>RSI(14) ternormalisasi</small></span><b id="taScore">—</b></div><div class="breakdown-row"><span>Sentimen manual<small>Input subjektif, bukan fundamental</small></span><b id="faScoreDisplay">0.00</b></div><div class="breakdown-row"><span>Funding kontrarian<small id="fundingFactorState">nonaktif</small></span><b id="fundingFactorScore">—</b></div><div class="breakdown-row"><span>OI + perubahan harga<small id="oiFactorState">menunggu sampel</small></span><b id="oiFactorScore">—</b></div></div>
             <div class="signal-threshold"><span>SHORT / SELL <b>−0.65</b></span><div class="threshold-track"><i class="threshold-center"></i><i id="thresholdMarker"></i></div><span>LONG / BUY <b>+0.65</b></span></div>
-            <div class="equation-note">S<sub>c</sub> = W<sub>ta</sub> · S<sub>ta</sub> + W<sub>m</sub> · S<sub>manual</sub></div>
+            <div class="equation-note">S<sub>c</sub> = jumlah(w<sub>i</sub> × s<sub>i</sub>) / jumlah bobot tersedia</div>
+            <details class="term-help"><summary>Penjelasan RSI, ATR, skor, dan rumus</summary><p>RSI(14) membandingkan momentum naik/turun. ATR(14) mengukur rentang volatilitas dan bukan prediksi arah. Skor berada pada −1 sampai +1; bobot derivatif default 0%, sehingga hasil awal tetap memakai bobot TA dan sentimen manual yang lama. Bobot komponen yang tidak tersedia dikeluarkan lalu bobot aktif dinormalisasi kembali. Funding hanya faktor kontrarian opsional; OI hanya dapat berkontribusi jika tersedia perubahan OI dan harga pada dua sampel segar pair yang sama.</p></details>
             <p class="signal-disclaimer">Tanpa posisi: BUY → LONG, SELL → SHORT pada SWAP, bukan jual aset spot. Sinyal berlawanan menutup posisi paper aktif dahulu. WAIT tidak membuka posisi. Indikator bukan kepastian hasil.</p>
           </article>
           <article class="panel fundamentals-panel" id="fundamentals" aria-labelledby="fundamentalsTitle">
-            <div class="panel-heading"><div><div class="section-kicker">KONTEKS FUNDAMENTAL</div><h2 class="panel-title" id="fundamentalsTitle">Data kontrak OKX</h2></div><span class="tiny-chip">TERPISAH DARI SINYAL</span></div>
+            <div class="panel-heading"><div><div class="section-kicker">KONTEKS DERIVATIF</div><h2 class="panel-title" id="fundamentalsTitle">Data kontrak OKX</h2></div><span class="tiny-chip">TERPISAH DARI SINYAL</span></div>
             <div class="fundamental-grid">
               <div class="fundamental-metric"><span>Funding prediksi</span><b id="fundingRate">—</b><small id="fundingNext">Sumber/waktu belum tersedia</small></div>
               <div class="fundamental-metric"><span>Funding settlement</span><b id="settledFundingRate">—</b><small id="fundingSettledState">Data settlement belum tersedia</small></div>
               <div class="fundamental-metric"><span>Open interest</span><b id="openInterestValue">—</b><small id="openInterestUnit">USD · kontrak belum diketahui</small></div>
             </div>
             <div class="fundamental-meta"><span id="fundingUpdatedAt">Funding diperbarui: —</span><span id="openInterestUpdatedAt">OI diperbarui: —</span></div>
-            <p class="fundamental-note">Funding dan open interest adalah konteks pasar derivatif, bukan valuasi fundamental token dan tidak mengubah sinyal. Market cap/supply aset: <b>belum tersedia (unknown)</b>. Nilai kosong tidak diestimasi.</p>
+            <p class="fundamental-note">Funding dan open interest adalah konteks pasar derivatif, bukan valuasi fundamental token. Bobotnya default 0%; market cap/supply aset belum tersedia. Nilai kosong/stale tidak diestimasi.</p>
             <div class="fundamental-sources"><a class="fundamental-source" href="https://www.okx.com/docs-v5/en/#rest-api-public-data-get-funding-rate" target="_blank" rel="noopener noreferrer">Dokumentasi funding</a><a class="fundamental-source" href="https://www.okx.com/docs-v5/en/#rest-api-public-data-get-open-interest" target="_blank" rel="noopener noreferrer">Dokumentasi open interest</a></div>
           </article>
         </aside>
@@ -121,19 +126,23 @@
           <p class="panel-subtitle">Pengaturan hanya memengaruhi simulasi lokal</p>
           <div class="control-grid">
             <label class="control-block"><span class="control-title">Sentimen manual <b id="faValue">0.00</b></span><span class="control-help">Input subjektif, bukan data fundamental · −1 bearish, +1 bullish</span><input id="faInput" type="range" min="-1" max="1" step="0.05" value="0" aria-label="Sentimen manual subjektif"><span class="range-ends"><span>−1 bearish</span><span>0 netral</span><span>+1 bullish</span></span></label>
-            <label class="control-block"><span class="control-title">Risiko per trade <b id="riskValueLabel">1.0%</b></span><span class="control-help">Target risiko dari ekuitas paper hingga stop ATR</span><input id="riskInput" type="range" min="0.25" max="2" step="0.25" value="1" aria-label="Risiko per trade"><span class="range-ends"><span>0.25%</span><span>1.0%</span><span>2.0%</span></span></label>
+            <label class="control-block"><span class="control-title">Risiko per trade <b id="riskValueLabel">1.0%</b></span><span class="control-help">Batas sizing gross ke stop ATR; nominal belum termasuk fee, slippage, atau funding</span><input id="riskInput" type="range" min="0.25" max="2" step="0.25" value="1" aria-label="Risiko per trade"><span class="range-ends"><span>0.25%</span><span>1.0%</span><span>2.0%</span></span></label>
             <label class="control-block"><span class="control-title">Leverage simulasi <b id="leverageValueLabel">1×</b></span><span class="control-help">Hanya sizing paper; tidak mengubah leverage akun OKX</span><input id="leverageInput" type="range" min="1" max="20" step="1" value="1" aria-label="Leverage simulasi"><span class="range-ends"><span>1×</span><span>maks. 20×</span></span></label>
-            <label class="control-block"><span class="control-title">Bobot teknikal <b id="taWeightLabel">70%</b></span><span class="control-help">Sisa bobot dialokasikan ke sentimen manual; funding/OI tidak masuk ke sinyal</span><input id="weightInput" type="range" min="0" max="100" step="5" value="70" aria-label="Bobot teknikal"><span class="range-ends"><span>0% TA</span><span>70% default</span><span>100% TA</span></span></label>
-            <div class="risk-output"><span class="output-caption">ESTIMASI ENTRY SWAP</span><span class="risk-notional" id="riskDirection">WAIT · belum ada arah sinyal</span><b id="positionSize">—</b><span id="riskAmount">Risiko nominal: —</span><span class="risk-notional" id="riskNotional">Notional — · margin estimasi —</span><div class="risk-foot"><span>SL <b id="riskSL">—</b></span><span>TP <b id="riskTP">—</b></span></div></div>
+            <label class="control-block"><span class="control-title">Bobot teknikal <b id="taWeightLabel">70%</b></span><span class="control-help" id="weightHelp">Sisa bobot non-derivatif untuk sentimen manual; bobot derivatif default 0%</span><input id="weightInput" type="range" min="0" max="100" step="5" value="70" aria-label="Bobot teknikal" aria-describedby="weightHelp"><span class="range-ends"><span>0% TA</span><span>70% default</span><span>100% TA</span></span></label>
+            <label class="control-block"><span class="control-title">Bobot funding <b id="fundingWeightLabel">0%</b></span><span class="control-help" id="fundingWeightHelp">Faktor kontrarian dari rate prediksi segar; default nonaktif</span><input id="fundingWeightInput" type="range" min="0" max="20" step="5" value="0" aria-label="Bobot funding kontrarian" aria-describedby="fundingWeightHelp"></label>
+            <label class="control-block"><span class="control-title">Bobot OI <b id="oiWeightLabel">0%</b></span><span class="control-help" id="oiWeightHelp">Perubahan OI dan harga dari dua sampel segar; default nonaktif</span><input id="oiWeightInput" type="range" min="0" max="20" step="5" value="0" aria-label="Bobot open interest" aria-describedby="oiWeightHelp"></label>
+            <label class="control-block confirm-control"><span class="control-title">Konfirmasi timeframe aktif</span><span class="control-help" id="taConfirmHelp">Opsional: EMA20 + MACD searah dan volume candle tertutup ≥1,2× rerata 20 candle; default mati.</span><input id="taConfirmInput" type="checkbox" aria-label="Aktifkan konfirmasi EMA MACD dan volume" aria-describedby="taConfirmHelp"><span class="range-ends">Tanpa data cukup, sinyal ditahan</span></label>
+            <label class="control-block confirm-control"><span class="control-title">Filter konfirmasi 4H</span><span class="control-help" id="trendHelp">Opsional: EMA/MACD timeframe 4H harus searah; default mati.</span><input id="trendFilterInput" type="checkbox" aria-label="Aktifkan filter konfirmasi tren 4H" aria-describedby="trendHelp"><span class="range-ends">Analisis teknikal, paper saja</span></label>
+            <div class="risk-output"><span class="output-caption">ESTIMASI ENTRY SWAP</span><span class="risk-notional" id="riskDirection">WAIT · belum ada arah sinyal</span><b id="positionSize">—</b><span id="riskAmount">Risiko gross sebelum biaya: —</span><span class="risk-notional" id="riskNotional">Notional — · margin estimasi —</span><div class="risk-foot"><span>SL <b id="riskSL">—</b></span><span>TP <b id="riskTP">—</b></span></div></div>
           </div>
           <div class="swap-scenarios" aria-label="Referensi TP SL SWAP dua arah">
             <div class="swap-scenario"><b class="positive-text">LONG · untung jika harga naik</b><span id="longScenario">Menunggu data pasar</span><small>SL di bawah entry · TP di atas entry</small></div>
             <div class="swap-scenario"><b class="negative-text">SHORT · untung jika harga turun</b><span id="shortScenario">Menunggu data pasar</span><small>TP di bawah entry · SL di atas entry</small></div>
           </div>
-          <p class="panel-subtitle">Dua skenario referensi dari harga saat ini, bukan dua sinyal sekaligus. TP/SL hanya level simulasi; tidak memicu exit otomatis atau memasang protective order di OKX.</p>
+          <p class="panel-subtitle">Dua skenario referensi dari harga saat ini, bukan dua sinyal sekaligus. Posisi baru paper dapat ditutup saat polling melewati level; tidak ada protective order di OKX.</p>
           <div class="model-note"><span>i</span><span>Jumlah kontrak = risiko / (jarak stop × nilai kontrak), dibulatkan ke lot step OKX; dibatasi saldo paper × leverage simulasi. Notional dan margin adalah estimasi.</span></div>
         </article>
-        <article class="panel live-panel" id="live">
+        <article class="panel live-panel" id="live" hidden>
           <div class="panel-heading"><div><div class="section-kicker">AKUN &amp; EKSEKUSI</div><h2 class="panel-title">Koneksi OKX &amp; auto-trade</h2></div><span class="live-mode-badge disabled" id="liveModeBadge">NONAKTIF</span></div>
           <div class="live-unavailable" id="liveUnavailable" role="status">Memeriksa status backend privat…</div>
           <div class="live-form" id="liveForm" hidden>
@@ -180,11 +189,17 @@
         </article>
       </section>
 
+      <section class="feature-grid" aria-label="Alat tambahan paper dan analisis">
+        <article class="panel feature-panel" id="backtestPanel"><div class="panel-heading"><div><div class="section-kicker">RISET HISTORIS · TERPISAH</div><h2 class="panel-title">Backtest candle tertutup</h2></div><span class="tiny-chip">TANPA ORDER</span></div><p class="panel-subtitle">Maksimal 100 candle lokal pada timeframe terpilih. Entry asumsi pada open candle berikutnya; hasil gross tanpa biaya/funding.</p><button class="button button-outline" id="runBacktestBtn" type="button" disabled>Jalankan backtest lokal</button><div id="backtestResult" class="feature-result" role="status" aria-live="polite">Menunggu candle tertutup.</div></article>
+        <article class="panel feature-panel"><div class="panel-heading"><div><div class="section-kicker">ALERT HARGA · LOKAL</div><h2 class="panel-title">Peringatan pair terpilih</h2></div><span class="tiny-chip">TAB AKTIF SAJA</span></div><div class="alert-controls"><label for="alertPriceInput">Harga pemicu USDT</label><input id="alertPriceInput" type="number" min="0" step="any" inputmode="decimal" placeholder="Contoh: 65000"><select id="alertDirection" aria-label="Arah pemicu harga"><option value="above">Melintasi ke atas</option><option value="below">Melintasi ke bawah</option></select><button class="button button-outline" id="addPriceAlertBtn" type="button">Tambah alert</button></div><div id="alertsList" class="feature-result" role="status" aria-live="polite">Alert hanya diperiksa saat tab aktif menerima data pasar.</div></article>
+      </section>
+
       <section class="panel activity-panel" id="activity" aria-labelledby="activityTitle">
-        <div class="panel-heading"><div><div class="section-kicker">CATATAN SIMULASI</div><h2 class="panel-title" id="activityTitle">Riwayat paper trade</h2><p class="panel-subtitle">Disimpan lokal pada perangkat ini</p></div><button class="text-button" id="clearHistoryBtn" type="button">Bersihkan riwayat</button></div>
-        <div class="table-scroll"><table><thead><tr><th>WAKTU</th><th>ASET</th><th>AKSI</th><th>HARGA</th><th>UKURAN</th><th>REALIZED P&amp;L</th><th>STATUS</th></tr></thead><tbody id="activityBody"><tr class="empty-row"><td colspan="7">Belum ada aktivitas paper. Sinyal hanya dapat disimulasikan saat valid.</td></tr></tbody></table></div>
+        <div class="panel-heading"><div><div class="section-kicker">CATATAN SIMULASI</div><h2 class="panel-title" id="activityTitle">Riwayat paper trade</h2><p class="panel-subtitle">Disimpan lokal pada perangkat ini. CSV untuk histori; JSON untuk backup portfolio.</p></div><div class="history-actions"><button class="button button-outline" id="exportCsvBtn" type="button">Ekspor CSV</button><button class="button button-outline" id="exportJsonBtn" type="button">Backup JSON</button><label class="button button-outline import-button" for="importJsonInput">Impor JSON</label><input id="importJsonInput" type="file" accept="application/json,.json" hidden><button class="text-button" id="clearHistoryBtn" type="button">Bersihkan riwayat</button></div></div>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="Riwayat paper trade; geser horizontal untuk semua kolom"><table><thead><tr><th>WAKTU</th><th>ASET</th><th>AKSI</th><th>HARGA</th><th>UKURAN</th><th>REALIZED P&amp;L</th><th>STATUS</th></tr></thead><tbody id="activityBody"><tr class="empty-row"><td colspan="7">Belum ada aktivitas paper. Sinyal hanya dapat disimulasikan saat valid.</td></tr></tbody></table></div>
       </section>
       <footer class="footer"><span><b>ORBITAL</b> <i>·</i> PAPER MODE</span><span>Data pasar publik · Bukan saran investasi · Tidak berafiliasi dengan OKX</span></footer>
+      <nav class="bottom-nav" aria-label="Navigasi bawah"><a href="#overview" aria-current="page">Pasar</a><a href="#engine">Analisis</a><a href="#paper">Paper</a><a href="#activity">Riwayat</a></nav>
     </main>
   </div>
 

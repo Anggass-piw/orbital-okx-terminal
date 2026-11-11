@@ -1,8 +1,12 @@
-const CACHE = 'orbital-shell-v12';
+const CACHE = 'orbital-shell-v13';
 const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/vendor/lightweight-charts.standalone.production.js', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));
+});
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', event => {
