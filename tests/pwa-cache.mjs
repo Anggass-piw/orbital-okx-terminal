@@ -4,13 +4,21 @@ import { readFile } from 'node:fs/promises';
 
 const handlers = new Map();
 const cached = new Map([['/',new Response('<html>offline shell</html>')],['/app.js',new Response('cached javascript')]]);
+let skipWaitingCalls = 0;
 const context = vm.createContext({
   URL, Response, location:{origin:'https://orbital-test.example'},
-  self:{addEventListener:(name,fn)=>handlers.set(name,fn),skipWaiting:async()=>{},clients:{claim:async()=>{}}},
+  self:{addEventListener:(name,fn)=>handlers.set(name,fn),skipWaiting:async()=>{skipWaitingCalls++;},clients:{claim:async()=>{}}},
   caches:{match:async request=>cached.get(typeof request==='string'?request:new URL(request.url).pathname)?.clone(),open:async()=>({put:async()=>{},addAll:async()=>{}}),keys:async()=>[],delete:async()=>true},
   fetch:async()=>{throw new Error('Offline test — no network permitted');},
 });
 vm.runInContext(await readFile(new URL('../public/sw.js', import.meta.url),'utf8'),context);
+let lifecycleTask;
+handlers.get('install')({waitUntil:promise=>{lifecycleTask=promise;}});
+await lifecycleTask;
+assert.equal(skipWaitingCalls,0,'New service worker waits for the user instead of taking over automatically');
+handlers.get('message')({data:{type:'SKIP_WAITING'},waitUntil:promise=>{lifecycleTask=promise;}});
+await lifecycleTask;
+assert.equal(skipWaitingCalls,1,'The explicit update action activates the waiting worker');
 const request = (path, mode='cors') => {
   let result;
   handlers.get('fetch')({request:{url:'https://orbital-test.example'+path,method:'GET',mode},respondWith:promise=>{result=promise;},waitUntil(){}});

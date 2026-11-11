@@ -3,8 +3,19 @@ import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../worker/index.js', import.meta.url), 'utf8');
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
-const { default: worker, OrderGuard, AutoTrader } = await import(moduleUrl);
-const env = { ASSETS: { fetch: async () => new Response('asset') } };
+const { default: worker, OrderGuard, AutoTrader, RequestRateLimiter } = await import(moduleUrl);
+const rateLimitActors = new Map();
+const rateLimitNamespace = {
+  idFromName: value => value,
+  get: id => {
+    if (!rateLimitActors.has(id)) {
+      const entries = new Map();
+      rateLimitActors.set(id, new RequestRateLimiter({ storage:{ transaction:async callback => callback({ get:async key => entries.get(key), put:async (key,value) => entries.set(key,value) }) } }));
+    }
+    return { fetch:(url,init) => rateLimitActors.get(id).fetch(new Request(url,init)) };
+  },
+};
+const env = { ASSETS: { fetch: async () => new Response('asset') }, ORBITAL_RATE_LIMITER:rateLimitNamespace };
 const request = (path, init) => new Request(`https://orbital-test.example${path}`, init);
 
 const statusResponse = await worker.fetch(request('/api/status'), env);
@@ -15,6 +26,15 @@ assert.equal(status.accountReadAvailable, false);
 assert.equal(status.accountMode, 'disabled');
 assert.equal(status.tradingAvailable, false);
 assert.equal(status.tradingMode, 'disabled');
+
+const directLimiter = rateLimitNamespace.get('direct-rate-limit-test');
+const rateCheck = () => directLimiter.fetch('https://private-rate-limiter/check', {
+  method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({scope:'market',limit:1,windowMs:60_000}),
+});
+assert.equal((await rateCheck()).status, 200, 'The first request in a rate window is admitted');
+const rateDenied = await rateCheck();
+assert.equal(rateDenied.status, 429, 'Requests beyond the configured window limit are denied');
+assert.ok(Number(rateDenied.headers.get('retry-after')) >= 1);
 
 const adminToken = 'test-admin-token-' + 'x'.repeat(32);
 let autoTraderCalls = 0;
@@ -330,6 +350,10 @@ try {
   const readOnlyPayload = await readOnlyAccount.json();
   assert.equal(readOnlyPayload.account.mode, 'demo');
   assert.equal(readOnlyPayload.account.availableUsdt, 1000);
+  const limiterUnavailableAccount = await worker.fetch(request('/api/private/account', {headers:authHeaders}), {...readOnlyEnv,ORBITAL_RATE_LIMITER:undefined});
+  assert.equal(limiterUnavailableAccount.status, 503, 'Private account reads fail closed without the rate limiter binding');
+  const limiterUnavailableMarket = await worker.fetch(request('/api/market/ticker?instId=BTC-USDT-SWAP'), {...env,ORBITAL_RATE_LIMITER:undefined});
+  assert.equal(limiterUnavailableMarket.status, 503, 'Public market proxy fails closed without the rate limiter binding');
   const lockedQuote = await worker.fetch(request('/api/live/quote', {
     method:'POST',headers:authHeaders,body:JSON.stringify(mockOrder),
   }), readOnlyEnv);

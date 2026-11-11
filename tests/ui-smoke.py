@@ -73,11 +73,12 @@ with sync_playwright() as p:
         page.locator('#priceValue').filter(has_text='100').wait_for()
         assert page.locator('.book-row').count()==16
         assert page.locator('.tape-row').count()==10
+        assert page.locator('#live').is_hidden(), 'Public UI hides the whole private-account panel when no private backend is available'
         assert page.locator('#liveForm').is_hidden()
         assert page.locator('#pairType').inner_text()=='SWAP'
         assert page.locator('#assetSelect option').count()==2
         assert page.locator('#instrumentCount').inner_text()=='2 PAIR AKTIF'
-        assert page.locator('#liveModeBadge').inner_text()=='NONAKTIF'
+        assert page.locator('#liveModeBadge').text_content().strip()=='NONAKTIF'
         assert page.locator('#paperTradeBtn').is_disabled()
         assert page.locator('#signalText').inner_text()=='WAIT', 'Neutral signal must be displayed as WAIT, not internal HOLD'
         assert page.locator('#scoreState').inner_text()=='WAIT · sinyal netral'
@@ -87,14 +88,36 @@ with sync_playwright() as p:
         assert 'Entry 100' in page.locator('#longScenario').inner_text()
         assert 'Entry 100' in page.locator('#shortScenario').inner_text()
         assert 'bukan spot' in page.locator('#paper').inner_text()
-        assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), f'Viewport overflow at {width}'
+        if width == 1440:
+            last_price=page.locator('#priceValue').inner_text()
+            fail_next_ticker=[True]
+            def fail_one_ticker(route):
+                if fail_next_ticker[0]:
+                    fail_next_ticker[0]=False
+                    route.fulfill(status=503,content_type='application/json',body=json.dumps({'error':'fixture outage'}))
+                else:
+                    fixture(route)
+            page.route('**/api/market/ticker**',fail_one_ticker)
+            page.locator('#refreshBtn').click()
+            page.locator('#marketError').wait_for(state='visible')
+            assert page.locator('#priceValue').inner_text()==last_price, 'A failed refresh preserves the last valid price as a stale snapshot'
+            assert page.locator('#priceChart canvas').count()>=1, 'A failed refresh keeps the last chart visible'
+            assert page.locator('#chartEmpty').is_hidden()
+            assert page.locator('#paperTradeBtn').is_disabled(), 'Paper entries are locked until fresh data returns'
+            assert page.locator('#marketStrip').get_attribute('aria-busy')=='false'
+            page.unroute('**/api/market/ticker**')
+        overflow=page.evaluate('''() => ({scroll:document.documentElement.scrollWidth, inner:window.innerWidth, parents:(()=>{let e=document.querySelector("#watchToggle"),r=[];while(e){let b=e.getBoundingClientRect();r.push({tag:e.tagName,id:e.id,className:typeof e.className==="string"?e.className:"",left:b.left,right:b.right,width:b.width,scroll:e.scrollWidth,client:e.clientWidth});e=e.parentElement}return r})(),elements:[...document.querySelectorAll("body *")].map(el=>({tag:el.tagName,id:el.id,className:typeof el.className==="string"?el.className:"",left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right,width:el.getBoundingClientRect().width})).filter(x=>x.right>window.innerWidth+1||x.left< -1).slice(0,12)})''')
+        assert overflow['scroll'] <= overflow['inner'], f'Viewport overflow at {width}: {overflow}'
         chart = page.locator('#priceChart').bounding_box()
         chart_wrap = page.locator('.chart-wrap').bounding_box()
         assert chart['width'] > 200 and chart_wrap['height'] >= 300, (width, chart, chart_wrap)
         assert page.locator('#priceChart canvas').count() >= 1, 'TradingView Lightweight Charts renders locally bundled canvases'
+        assert not page.locator('#taConfirmInput').is_checked(), 'EMA/MACD-volume confirmation stays opt-in by default'
+        assert page.locator('#taConfirmInput').get_attribute('aria-describedby') == 'taConfirmHelp'
         assert page.locator('#fundingRate').inner_text() == '+0.010000%'
         assert page.locator('#openInterestValue').inner_text() == '1,234,567.89 USD'
-        assert 'unknown' in page.locator('#fundamentals').inner_text().lower()
+        assert 'konteks derivatif' in page.locator('#fundamentals').inner_text().lower()
+        assert 'bukan valuasi fundamental token' in page.locator('#fundamentals').inner_text().lower()
         page.locator('#instrumentSearch').fill(' eTh-usdt ')
         assert page.locator('#instrumentResults').is_visible()
         result_box=page.locator('#instrumentResults').bounding_box()
@@ -196,8 +219,9 @@ with sync_playwright() as p:
     assert page.locator('#fundingRate').inner_text() == '—'
     assert page.locator('#openInterestValue').inner_text() == '—'
     assert page.locator('#rsiValue').inner_text() != '—', 'Missing fundamental context must not suppress technical analysis'
-    assert 'unknown' in page.locator('#fundamentals').inner_text().lower()
+    assert 'konteks derivatif' in page.locator('#fundamentals').inner_text().lower()
+    assert 'belum tersedia' in page.locator('#fundamentals').inner_text().lower()
     assert not errors, errors
-    print('ui-smoke: unavailable funding/open interest remain unknown while technical chart/indicators continue from fixtures')
+    print('ui-smoke: unavailable funding/open interest stay explicitly unavailable while technical chart/indicators continue from fixtures')
     context.close()
     browser.close()

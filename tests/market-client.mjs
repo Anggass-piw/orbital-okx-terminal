@@ -79,6 +79,26 @@ const response = value => new Response(JSON.stringify(value), {headers:{'content
   assert.equal(app.element('#refreshBtn').disabled,false);
 }
 {
+  const app = create(async () => new Response('{"error":"Rate limit"}', {status:429,headers:{'content-type':'application/json'}}));
+  await app.run('loadMarket()');
+  app.run("assert.equal(state.connected,false); assert.equal(state.loading,false)");
+  assert.match(app.element('#marketErrorText').textContent,/Batas permintaan/);
+  assert.match(app.element('#chartEmpty').textContent,/Batas permintaan/);
+  assert.equal(app.element('#paperTradeBtn').disabled,true);
+}
+{
+  const app = create(async url => {
+    if (url.includes('/candles?') && url.includes('bar=4H')) throw new Error('4H unavailable');
+    return response(fixture(url));
+  });
+  await app.run('loadMarket()');
+  app.run("assert.equal(state.loadedBar,'1H'); state.bar='4H'");
+  await app.run('loadMarket()');
+  app.run("assert.equal(state.price,null); assert.equal(state.connected,false); assert.equal(state.loadedBar,'1H')");
+  assert.match(app.element('#signalHint').textContent,/Menunggu data/);
+  assert.equal(app.element('#paperTradeBtn').disabled,true);
+}
+{
   const resolvers = [];
   const app = create(url => {
     if (url.includes('instId=BTC-USDT-SWAP') && (url.includes('/ticker?') || url.includes('/candles?'))) return new Promise(resolve => resolvers.push(() => resolve(response(fixture(url)))));
