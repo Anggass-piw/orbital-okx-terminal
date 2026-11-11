@@ -88,6 +88,23 @@ function sameOrigin(request) {
   return !origin || origin === new URL(request.url).origin;
 }
 
+async function rateLimitResponse(request, env, scope, limit, windowMs = 60_000) {
+  const namespace = env.ORBITAL_RATE_LIMITER;
+  if (!namespace?.idFromName || !namespace?.get) return responseJson({ error:'Rate limiter unavailable; protected request denied' }, 503);
+  const address = request.headers.get('cf-connecting-ip') || 'unknown';
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(address)));
+  const hashedAddress = [...digest].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  try {
+    const stub = namespace.get(namespace.idFromName(`ip-${hashedAddress}`));
+    const response = await stub.fetch('https://private-rate-limiter/check', {
+      method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({scope,limit,windowMs}),
+    });
+    return response.ok ? null : response;
+  } catch {
+    return responseJson({ error:'Rate limiter unavailable; protected request denied' }, 503);
+  }
+}
+
 function timingSafeEqual(a, b) {
   const left = new TextEncoder().encode(String(a));
   const right = new TextEncoder().encode(String(b));
@@ -265,6 +282,8 @@ async function privateAccountSnapshot(env) {
 async function privateAccountRoute(request, env) {
   if (!accountReadConfiguration(env).configured) return responseJson({ error: 'Private OKX read backend not configured' }, 503);
   if (!authorized(request, env)) return responseJson({ error: 'Unauthorized' }, 401);
+  const limited = await rateLimitResponse(request, env, 'account-read', 60);
+  if (limited) return limited;
   try {
     return responseJson({ account: await privateAccountSnapshot(env) });
   } catch (error) {
@@ -502,6 +521,8 @@ async function marketProxy(request, url) {
 async function createOrderQuote(request, env) {
   if (!tradingConfiguration(env).configured) return responseJson({ error: 'Trading backend not configured' }, 503);
   if (!authorized(request, env)) return responseJson({ error: 'Unauthorized' }, 401);
+  const limited = await rateLimitResponse(request, env, 'live-quote', 30);
+  if (limited) return limited;
   const input = await readJson(request);
   const order = validateOrder(input);
   if (!order) return responseJson({ error: 'Invalid USDT perpetual order' }, 400);
@@ -572,6 +593,8 @@ async function submitOrder(request, env) {
   const config = tradingConfiguration(env);
   if (!config.configured) return responseJson({ error: 'Trading backend not configured' }, 503);
   if (!authorized(request, env)) return responseJson({ error: 'Unauthorized' }, 401);
+  const limited = await rateLimitResponse(request, env, 'live-order', 10);
+  if (limited) return limited;
   const input = await readJson(request);
   const order = validateOrder(input);
   if (!order || input.confirmText !== OWNER_CONFIRMATION) return responseJson({ error: 'Invalid order or explicit confirmation missing' }, 400);
@@ -686,6 +709,33 @@ export class OrderGuard {
 
   async alarm() {
     await this.ctx.storage.delete('reservation');
+  }
+}
+
+export class RequestRateLimiter {
+  constructor(ctx) { this.ctx = ctx; }
+
+  async fetch(request) {
+    if (request.method !== 'POST' || new URL(request.url).pathname !== '/check') return responseJson({ error:'Not found' }, 404);
+    const body = await request.json().catch(() => null);
+    const scopes = new Set(['market','account-read','live-quote','live-order','auto-status','auto-start','auto-stop']);
+    if (!body || !scopes.has(body.scope) || !Number.isInteger(body.limit) || body.limit < 1 || body.limit > 1000
+        || !Number.isInteger(body.windowMs) || body.windowMs < 1000 || body.windowMs > 60_000) return responseJson({ error:'Invalid rate-limit request' }, 400);
+    const now = Date.now();
+    const windowStart = Math.floor(now / body.windowMs) * body.windowMs;
+    const decision = await this.ctx.storage.transaction(async transaction => {
+      const key = `rate:${body.scope}`;
+      const current = await transaction.get(key);
+      const bucket = current?.windowStart === windowStart ? current : { windowStart, count:0 };
+      if (bucket.count >= body.limit) return { allowed:false, retryAfter:Math.max(1, Math.ceil((windowStart + body.windowMs - now) / 1000)) };
+      bucket.count++;
+      await transaction.put(key, bucket);
+      return { allowed:true, remaining:Math.max(0, body.limit - bucket.count) };
+    });
+    if (!decision.allowed) return new Response(JSON.stringify({ error:'Rate limit exceeded', retryAfter:decision.retryAfter }), {
+      status:429, headers:{ 'content-type':'application/json; charset=utf-8', 'cache-control':'no-store', 'retry-after':String(decision.retryAfter), 'x-content-type-options':'nosniff' },
+    });
+    return responseJson(decision);
   }
 }
 
@@ -997,6 +1047,8 @@ async function autoTraderRoute(request, env, action) {
     body = await readJson(request);
     if (!body) return responseJson({ error: 'Invalid request body' }, 400);
   }
+  const limited = await rateLimitResponse(request, env, `auto-${action}`, action === 'status' ? 60 : 10);
+  if (limited) return limited;
   try {
     const stub = env.ORBITAL_AUTO_TRADER.get(env.ORBITAL_AUTO_TRADER.idFromName(AUTO_TRADER_NAME));
     const internal = new Request(`https://auto-trader/${action}`, {
@@ -1023,7 +1075,11 @@ export default {
           tradingAvailable: config.configured, tradingMode: config.mode,
           autoTradingAvailable: autoConfig.enabled, maxNotionalUsdt: maxNotional(env) });
       }
-      if (url.pathname.startsWith('/api/market/')) return marketProxy(request, url);
+      if (url.pathname.startsWith('/api/market/')) {
+        const limited = await rateLimitResponse(request, env, 'market', 120);
+        if (limited) return limited;
+        return marketProxy(request, url);
+      }
       if (url.pathname === '/api/private/account' && request.method === 'GET') return privateAccountRoute(request, env);
       if (url.pathname.startsWith('/api/auto/')) return autoTraderRoute(request, env, url.pathname.slice('/api/auto/'.length));
       if (url.pathname === '/api/live/quote' && request.method === 'POST') return createOrderQuote(request, env);
