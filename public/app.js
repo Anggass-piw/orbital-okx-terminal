@@ -101,6 +101,7 @@ function loadPortfolio() {
       ? {
           instId: raw.instId, side: raw.side, qty: Number(raw.qty), entry: Number(raw.entry),
           ctVal: Number(raw.ctVal), margin: Math.max(0, Number(raw.margin) || 0),
+          lotSz: Number.isFinite(Number(raw.lotSz)) && Number(raw.lotSz) > 0 ? String(raw.lotSz) : null,
           sl: Number(raw.sl) || 0, tp: Number(raw.tp) || 0,
           openedAt: Number(raw.openedAt) || Date.now(),
         }
@@ -379,10 +380,19 @@ function renderOrderBook(book) {
   const ctVal = Number(state.instrument?.ctVal);
   if (!Number.isFinite(ctVal) || ctVal <= 0) throw new Error('Nilai kontrak tidak valid');
   const notional = ([price, size]) => price * size * ctVal;
-  const maxTotal = Math.max(...[...asks, ...bids].map(notional));
-  const rows = (levels, side) => levels.map(([price, size]) => `<div class="book-row ${side}" style="--depth:${clamp(notional([price, size]) / maxTotal * 100, 0, 100).toFixed(2)}%"><span>${fmt(price, price >= 100 ? 2 : 3)}</span><span>${fmt(size, 5)}</span><span>${fmt(notional([price, size]), 2)}</span></div>`).join('');
-  $('#bookAsks').innerHTML = rows(asks.slice().reverse(), 'ask');
-  $('#bookBids').innerHTML = rows(bids, 'bid');
+  const withCumulativeDepth = levels => {
+    let cumulative = 0;
+    return levels.map(([price, size]) => {
+      cumulative += notional([price, size]);
+      return [price, size, cumulative];
+    });
+  };
+  const asksDepth = withCumulativeDepth(asks);
+  const bidsDepth = withCumulativeDepth(bids);
+  const maxTotal = Math.max(...[...asksDepth, ...bidsDepth].map(([, , total]) => total));
+  const rows = (levels, side) => levels.map(([price, size, total]) => `<div class="book-row ${side}" style="--depth:${clamp(total / maxTotal * 100, 0, 100).toFixed(2)}%"><span>${fmt(price, price >= 100 ? 2 : 3)}</span><span>${fmt(size, 5)}</span><span>${fmt(total, 2)}</span></div>`).join('');
+  $('#bookAsks').innerHTML = rows(asksDepth.slice().reverse(), 'ask');
+  $('#bookBids').innerHTML = rows(bidsDepth, 'bid');
   const mid = (asks[0][0] + bids[0][0]) / 2;
   const spread = Math.max(0, asks[0][0] - bids[0][0]);
   $('#bookMid').textContent = fmt(mid, mid >= 100 ? 2 : 3);
@@ -656,6 +666,13 @@ function getEquity() {
 }
 function contractDecimals(step) {
   return Math.min(8, (String(step || '1').split('.')[1] || '').length);
+}
+function contractDigits(asset, lotSz) {
+  const step = lotSz || state.instruments.find(item => item.instId === asset)?.lotSz || '0.01';
+  return contractDecimals(step);
+}
+function formatContracts(quantity, asset, lotSz) {
+  return `${fmt(quantity, contractDigits(asset, lotSz))} kontrak`;
 }
 function floorToStep(value, step) {
   if (!Number.isFinite(value) || !Number.isFinite(step) || step <= 0) return 0;
@@ -962,7 +979,7 @@ function renderPortfolio() {
   $('#pnlValue').textContent = (pnl >= 0 ? '+' : '') + money(pnl);
   $('#pnlValue').className = pnl > 0 ? 'positive-text' : pnl < 0 ? 'negative-text' : '';
   const name = position ? (state.instruments.find(item => item.instId === position.instId)?.baseCcy || position.instId.split('-')[0]) : '';
-  $('#openPosition').textContent = position ? `${position.side.toUpperCase()} ${fmt(position.qty, 2)} kontrak ${name}` : 'Tidak ada';
+  $('#openPosition').textContent = position ? `${position.side.toUpperCase()} ${formatContracts(position.qty, position.instId, position.lotSz)} ${name}` : 'Tidak ada';
   renderTrades();
 }
 
@@ -976,7 +993,7 @@ function renderTrades() {
     <td>${new Date(Number(trade.time) || Date.now()).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
     <td>${escapeHtml(trade.asset || '')}</td>
     <td><span class="side-badge ${['BUY', 'LONG'].includes(trade.side) ? 'buy' : 'sell'}">${escapeHtml(trade.side || '')}</span></td>
-    <td>${money(Number(trade.price))}</td><td>${fmt(trade.qty, 2)} kontrak</td>
+    <td>${money(Number(trade.price))}</td><td>${formatContracts(trade.qty, trade.asset, trade.lotSz)}</td>
     <td class="${trade.pnl > 0 ? 'positive-text' : trade.pnl < 0 ? 'negative-text' : ''}">${trade.pnl == null ? '—' : (trade.pnl >= 0 ? '+' : '') + money(trade.pnl)}</td>
     <td>SIMULASI</td>
   </tr>`).join('');
@@ -1000,17 +1017,17 @@ function paperTrade() {
     state.portfolio.cash -= sizing.margin;
     state.portfolio.position = {
       instId: state.asset, side: direction, qty: sizing.qty, entry: state.price,
-      ctVal: Number(state.instrument.ctVal), margin: sizing.margin,
+      ctVal: Number(state.instrument.ctVal), lotSz: String(state.instrument.lotSz || '0.01'), margin: sizing.margin,
       sl: sizing.sl, tp: sizing.tp, openedAt: now,
     };
-    state.portfolio.trades.push({ time: now, asset: state.asset, side: direction.toUpperCase(), price: state.price, qty: sizing.qty, pnl: null });
+    state.portfolio.trades.push({ time: now, asset: state.asset, side: direction.toUpperCase(), price: state.price, qty: sizing.qty, lotSz: String(state.instrument.lotSz || '0.01'), pnl: null });
   } else {
     const closes = existing.instId === state.asset
       && ((action === 'BUY' && existing.side === 'short') || (action === 'SELL' && existing.side === 'long'));
     if (!closes) return;
     const pnl = getUnrealized(existing);
     state.portfolio.cash += existing.margin + pnl;
-    state.portfolio.trades.push({ time: now, asset: existing.instId, side: 'CLOSE', price: state.price, qty: existing.qty, pnl });
+    state.portfolio.trades.push({ time: now, asset: existing.instId, side: 'CLOSE', price: state.price, qty: existing.qty, lotSz: existing.lotSz || state.instrument?.lotSz || '0.01', pnl });
     state.portfolio.position = null;
   }
   savePortfolio();
