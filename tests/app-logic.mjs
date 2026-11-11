@@ -63,6 +63,15 @@ assert.equal(size.qty, 666.66, 'Risk sizing uses risk / (stop distance × contra
 assert.equal(size.notional, 666.66); assert.equal(size.margin, 666.66);
 const shortSize = calcPosition('short');
 assert.equal(shortSize.sl, 115); assert.equal(shortSize.tp, 75, 'Short stop and take-profit are direction-aware');
+state.instruments = [{instId:'1000PEPE-USDT-SWAP',baseCcy:'1000PEPE',lotSz:'0.0001'}];
+state.portfolio = {
+  cash:99,
+  position:{instId:'1000PEPE-USDT-SWAP',side:'long',qty:0.0001,entry:100,ctVal:0.01,margin:1,lotSz:'0.0001'},
+  trades:[{asset:'1000PEPE-USDT-SWAP',side:'LONG',price:100,qty:0.0001,lotSz:'0.0001',time:Date.now(),pnl:null}],
+};
+renderPortfolio();
+assert.equal($('#openPosition').textContent,'LONG 0.0001 kontrak 1000PEPE', 'Open positions preserve the instrument lot precision');
+assert.match($('#activityBody').innerHTML,/0\.0001 kontrak/, 'Trade history preserves small valid contract quantities');
 state.price = 100; state.atr = 0.1; state.riskPct = 1;
 state.portfolio = { cash:50, position:null, trades:[] };
 const cashLimitedSize = calcPosition();

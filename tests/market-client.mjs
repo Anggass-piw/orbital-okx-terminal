@@ -40,6 +40,15 @@ const response = value => new Response(JSON.stringify(value), {headers:{'content
 }
 {
   const app = create(async url => response(fixture(url)));
+  app.run(`state.instrument = ${JSON.stringify(catalog[0])}; renderOrderBook({asks:[[101,1],[102,2],[103,3]],bids:[[100,1],[99,2],[98,3]],ts:${now}})`);
+  const asks = app.element('#bookAsks').innerHTML;
+  const bids = app.element('#bookBids').innerHTML;
+  assert.ok(asks.indexOf('<span>6.14</span>') < asks.indexOf('<span>3.05</span>'), 'Ask notional accumulates from the best ask before display is reversed');
+  assert.ok(asks.includes('<span>1.01</span>'), 'Best ask shows the first level notional');
+  assert.ok(bids.includes('<span>5.92</span>'), 'Bid notional accumulates across visible depth');
+}
+{
+  const app = create(async url => response(fixture(url)));
   await app.run('loadMarket()');
   app.run("assert.equal(state.connected,true); assert.equal(state.price,101); assert.equal(state.candles.length,30); assert.equal(state.loading,false)");
   assert.match(app.element('#bookAsks').innerHTML, /book-row ask/);

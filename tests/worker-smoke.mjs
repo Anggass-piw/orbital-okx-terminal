@@ -16,6 +16,38 @@ assert.equal(status.accountMode, 'disabled');
 assert.equal(status.tradingAvailable, false);
 assert.equal(status.tradingMode, 'disabled');
 
+const adminToken = 'test-admin-token-' + 'x'.repeat(32);
+let autoTraderCalls = 0;
+const configuredAutoEnv = {
+  ...env,
+  ORBITAL_ADMIN_TOKEN: adminToken,
+  OKX_API_KEY: 'test-key',
+  OKX_API_SECRET: 'test-secret',
+  OKX_API_PASSPHRASE: 'test-passphrase',
+  ORBITAL_TRADING_ENABLED: 'true',
+  ORBITAL_ORDER_GUARD: {},
+  ORBITAL_CHALLENGE_SECRET: 'c'.repeat(32),
+  ORBITAL_AUTO_TRADING_ENABLED: 'true',
+  ORBITAL_AUTO_TRADING_ACK: 'I_ACCEPT_AUTO_TRADING_RISK',
+  ORBITAL_AUTO_TRADER: { get() { autoTraderCalls++; throw new Error('Oversized body must not reach storage'); } },
+};
+const oversizedBody = new ReadableStream({
+  start(controller) {
+    controller.enqueue(new TextEncoder().encode(`{"value":"${'x'.repeat(5000)}"}`));
+    controller.close();
+  },
+});
+const oversizedRequest = request('/api/auto/start', {
+  method: 'POST',
+  headers: { authorization: `Bearer ${adminToken}`, 'content-type': 'application/json' },
+  body: oversizedBody,
+  duplex: 'half',
+});
+assert.equal(oversizedRequest.headers.get('content-length'), null, 'Streaming request fixture has no Content-Length header');
+const oversizedResponse = await worker.fetch(oversizedRequest, configuredAutoEnv);
+assert.equal(oversizedResponse.status, 400, 'Actual streamed bytes above the JSON limit are rejected without Content-Length');
+assert.equal(autoTraderCalls, 0, 'Rejected request must not reach Durable Object storage');
+
 const quoteResponse = await worker.fetch(request('/api/live/quote', {
   method: 'POST', headers: { 'content-type': 'application/json' },
   body: JSON.stringify({ instId: 'BTC-USDT-SWAP', side: 'buy', sz: '0.001', px: '50000' }),
