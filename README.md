@@ -1,5 +1,7 @@
 # Orbital OKX Perpetual Terminal
 
+**Aplikasi live terbaru:** [Buka Orbital OKX Terminal](https://orbital-okx-terminal.erlanggarangga564.workers.dev). Deployment publik memakai data pasar OKX dan paper portfolio; order nyata nonaktif.
+
 PWA berbahasa Indonesia untuk memantau **OKX USDT-settled linear perpetual swaps**, menganalisis RSI/ATR dan skor sinyal, serta mencoba ukuran posisi dalam kontrak melalui paper trading lokal. Ini bukan aplikasi resmi OKX dan bukan saran investasi.
 
 ## Yang tersedia
@@ -87,6 +89,6 @@ node tests/pwa-cache.mjs
 
 Tes gateway memakai kredensial palsu dan `fetch` tiruan; tidak menghubungi akun OKX dan tidak mengirim order. Tes UI memakai Chromium lokal dan tidak menghubungi API bursa.
 
-## Preview
+## Aplikasi live
 
-Preview sementara yang lama tetap tersedia di https://orbital-okx-preview.tiny-scilla.workers.dev dan hanya memakai data pasar publik/paper. Deployment akun baru ada di URL Workers di atas; Durable Objects terikat pada Worker itu, tetapi belum menyimpan state atau rahasia koneksi akun. Tidak ada API key Demo dibuat atau rahasia OKX diunggah. PWA dan paper portfolio lama pada origin lain tidak berpindah otomatis.
+Gunakan [deployment utama Orbital](https://orbital-okx-terminal.erlanggarangga564.workers.dev). Aplikasi menyajikan katalog dan data pasar publik OKX serta simulasi paper lokal. Koneksi akun privat belum dikonfigurasi, dan eksekusi order manual maupun otomatis tetap nonaktif. Data PWA dan paper portfolio tersimpan per perangkat/origin, sehingga tidak berpindah otomatis dari deployment lain.
