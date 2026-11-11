@@ -81,6 +81,12 @@ with sync_playwright() as p:
         assert page.locator('#paperTradeBtn').is_disabled()
         assert page.locator('#signalText').inner_text()=='WAIT', 'Neutral signal must be displayed as WAIT, not internal HOLD'
         assert page.locator('#scoreState').inner_text()=='WAIT · sinyal netral'
+        assert page.locator('#riskDirection').inner_text()=='WAIT · belum ada arah sinyal'
+        assert page.locator('#riskSL').inner_text()=='—' and page.locator('#riskTP').inner_text()=='—'
+        assert page.locator('#longScenario').is_visible() and page.locator('#shortScenario').is_visible()
+        assert 'Entry 100' in page.locator('#longScenario').inner_text()
+        assert 'Entry 100' in page.locator('#shortScenario').inner_text()
+        assert 'bukan spot' in page.locator('#paper').inner_text()
         assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), f'Viewport overflow at {width}'
         chart = page.locator('#priceChart').bounding_box()
         chart_wrap = page.locator('.chart-wrap').bounding_box()

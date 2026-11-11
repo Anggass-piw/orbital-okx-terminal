@@ -63,6 +63,43 @@ assert.equal(size.qty, 666.66, 'Risk sizing uses risk / (stop distance × contra
 assert.equal(size.notional, 666.66); assert.equal(size.margin, 666.66);
 const shortSize = calcPosition('short');
 assert.equal(shortSize.sl, 115); assert.equal(shortSize.tp, 75, 'Short stop and take-profit are direction-aware');
+state.candles = [{ts:1000,open:100,high:102,low:98,close:100,vol:1}];
+state.analysisCandles = state.candles;
+let chartMarkers = [];
+tvChart = { timeScale:()=>({fitContent(){}}) };
+tvCandleSeries = {setData(){},removePriceLine(){},createPriceLine:line=>line};
+tvMarkers = {setMarkers:markers=>{chartMarkers=markers;}};
+for (const [side,score,sl,tp] of [['long',1,85,125],['short',-1,115,75]]) {
+  state.price=100; state.atr=10; state.score=score;
+  state.portfolio={cash:10000,position:null,trades:[]};
+  updateUI();
+  assert.equal($('#signalText').textContent,side.toUpperCase());
+  assert.equal($('#riskSL').textContent,fmt(sl,6));
+  assert.equal($('#riskTP').textContent,fmt(tp,6));
+  assert.equal(tvPriceLines[1].price,sl); assert.equal(tvPriceLines[2].price,tp);
+  assert.ok(chartMarkers[0].text.startsWith(side.toUpperCase()));
+  assert.match($('#longScenario').textContent,/Entry .*TP .*SL /);
+  assert.match($('#shortScenario').textContent,/Entry .*TP .*SL /);
+  paperTrade();
+  assert.equal(state.portfolio.position.side,side);
+  assert.equal(state.portfolio.position.sl,sl); assert.equal(state.portfolio.position.tp,tp);
+  assert.equal(state.portfolio.trades[0].side,side.toUpperCase());
+  state.score=-score; updateUI();
+  const opposite=side==='long'?'SHORT':'LONG';
+  assert.match($('#riskDirection').textContent,new RegExp('Referensi '+opposite));
+  assert.match($('#riskDirection').textContent,/bukan level posisi aktif/);
+  assert.ok(tvPriceLines.every(line=>line.title.startsWith('REF '+opposite)));
+  assert.equal($('#riskSL').textContent,fmt(tvPriceLines[1].price,6));
+  assert.equal($('#paperTradeBtn').textContent,'Tutup posisi '+side.toUpperCase()+' paper');
+  assert.equal(state.portfolio.position.sl,sl, 'Signal references never overwrite stored position levels');
+  state.score=0; state.price=side==='long'?130:70; updateUI();
+  assert.equal($('#riskSL').textContent,'—'); assert.equal($('#riskTP').textContent,'—');
+  assert.equal(tvPriceLines.length,0, 'WAIT has no directional signal overlay');
+  assert.equal(state.portfolio.position.side,side, 'Reference TP/SL does not trigger an automatic paper exit');
+}
+tvChart=null; tvCandleSeries=null; tvMarkers=null;
+state.price=100; state.atr=10;
+assert.equal(state.live.available,false); assert.equal(state.live.autoAvailable,false);
 state.instruments = [{instId:'1000PEPE-USDT-SWAP',baseCcy:'1000PEPE',lotSz:'0.0001'}];
 state.portfolio = {
   cash:99,
@@ -98,5 +135,7 @@ assert.equal(state.candles.length, 0);
 assert.equal($('#priceValue').textContent, '—');
 assert.equal($('#chartAsset').textContent, 'SOL-USDT-SWAP');
 assert.equal($('#paperTradeBtn').disabled, true);
+assert.equal($('#longScenario').textContent,'Menunggu data pasar');
+assert.equal($('#shortScenario').textContent,'Menunggu data pasar');
 `, context);
 console.log('app-logic: OK — Wilder RSI/ATR, composite-score thresholds, contract-value long/short sizing, margin caps, exits and stale-market guards pass without network or exchange orders.');
