@@ -1,8 +1,8 @@
 # Orbital OKX Perpetual Terminal
 
-**Aplikasi live terbaru:** [Buka Orbital OKX Terminal](https://orbital-okx-terminal.erlanggarangga564.workers.dev). Deployment publik memakai data pasar OKX dan paper portfolio; order nyata nonaktif.
+**Aplikasi live saat ini:** [Buka Orbital OKX Terminal](https://orbital-okx-terminal.erlanggarangga564.workers.dev). Revisi fitur di branch review lokal belum dideploy; deployment publik tetap memakai versi sebelumnya. Order nyata dan auto-trading tetap nonaktif.
 
-PWA berbahasa Indonesia untuk memantau **OKX USDT-settled linear perpetual swaps**, menganalisis RSI/ATR dan skor sinyal, serta mencoba ukuran posisi dalam kontrak melalui paper trading lokal. Ini bukan aplikasi resmi OKX dan bukan saran investasi.
+PWA berbahasa Indonesia untuk memantau **OKX USDT-settled linear perpetual swaps**, menganalisis RSI/ATR, faktor derivatif opsional, dan tren multi-timeframe, serta mencoba ukuran posisi dalam kontrak melalui paper trading lokal. Ini bukan aplikasi resmi OKX dan bukan saran investasi.
 
 ## SWAP: LONG dan SHORT, bukan spot saja
 
@@ -15,20 +15,23 @@ Terminal ini memakai kontrak perpetual SWAP USDT, bukan pembelian/penjualan aset
 
 UI menampilkan dua skenario LONG/SHORT dari harga saat ini agar arah TP/SL dapat dibandingkan, termasuk saat WAIT. Keduanya adalah referensi, **bukan dua sinyal entry sekaligus**. Label sinyal dan garis chart menyebut arah SWAP; estimasi entry mengikuti sinyal saat ini, bukan sisi posisi lain yang sedang terbuka. Contoh entry 100 dan ATR 10: LONG SL 85 / TP 125; SHORT SL 115 / TP 75.
 
-**TP/SL ini tidak memicu penutupan otomatis pada paper dan tidak memasang protective order di OKX.** Level yang tersimpan pada posisi paper tetap referensi saat entry; preview dapat berubah bersama harga/ATR. Mode order nyata dan auto-trading tetap nonaktif. Tidak ada order exchange, leverage akun, atau konfigurasi eksekusi yang diaktifkan oleh perubahan UI ini.
+**Untuk posisi paper baru pada revisi lokal ini**, SL/TP dipantau saat browser menerima ticker valid; posisi ditutup dengan fill simulasi ketika harga mencapai/melewati level. Pemantauan berhenti saat tab tertutup/offline, gap dapat memperburuk fill, dan tidak ada protective order di OKX. Posisi lama yang tersimpan tidak mendapat auto-exit retroaktif. Preview level dapat berubah bersama harga/ATR. Mode order nyata dan auto-trading tetap nonaktif; perubahan ini tidak mengirim order exchange atau mengubah konfigurasi akun.
 
 ## Yang tersedia
 
 - **Katalog dinamis:** backend mengambil semua instrumen SWAP aktif yang diselesaikan dalam USDT dan bertipe linear dari endpoint publik OKX. Tidak ada daftar BTC/ETH/SOL yang dikunci di frontend. Pencarian menyaring katalog, kontrak yang nilainya berbeda ditampilkan dengan ukuran/minimum/lot/tick masing-masing, dan katalog diperbarui berkala. Kontrak inverse dan instrumen yang tidak aktif tidak ikut ditampilkan.
 - **Pasar Swap:** ticker, candle 15m/1H/4H/1D, order book, transaksi, funding rate, dan open interest diambil melalui proxy Worker same-origin. Kuantitas order book/tape dan order memakai satuan kontrak.
 - **Chart TradingView:** candlestick interaktif memakai Lightweight Charts 5.2.0 yang dibundel lokal, bukan feed chart TradingView. Data candle tetap berasal dari OKX; chart mendukung zoom/geser, crosshair OHLC, penanda BUY/SELL, dan garis estimasi entry/SL/TP. Library mengikuti Apache-2.0 serta atribusi TradingView di UI dan berkas NOTICE.
-- **Analisis teknikal:** RSI(14) dan ATR(14) memakai smoothing Wilder pada candle tertutup; skor teknikal dinormalisasi dari RSI lalu dikombinasikan dengan input sentimen manual. Bobot TA awal 70%, ambang sinyal ±0,65. BUY/SELL/WAIT adalah aturan indikator eksperimental, bukan kepastian atau prediksi hasil.
-- **Konteks fundamental kontrak:** panel terpisah menunjukkan funding prediksi/settlement dan open interest dengan timestamp dari OKX Public API. Funding positif berarti long membayar short sesuai dokumentasi OKX. Metrik ini menggambarkan posisi/pembiayaan derivatif, bukan valuasi fundamental token; market cap dan supply belum tersedia (unknown) dan tidak ikut menentukan skor. Jika endpoint gagal atau field kosong, UI menunjukkan —, bukan estimasi.
-- **Sizing risiko:** ukuran kontrak dibulatkan turun ke lot step OKX dan memperhatikan `ctVal`, minimum order, target risiko paper, jarak stop 1,5× ATR, serta batas collateral × leverage simulasi. Target take-profit paper 2,5× ATR. UI menampilkan kontrak, estimasi risiko, notional, dan margin. Leverage ini hanya untuk simulasi lokal; tidak mengubah pengaturan akun OKX.
-- **Paper long/short:** tombol simulasi membuka posisi sesuai sinyal BUY/SELL atau menutup posisi paper yang berlawanan. Saldo dan riwayat hanya disimpan di browser/perangkat yang dipakai. Paper tidak memodelkan biaya, funding, likuidasi, slippage, atau protective order.
-- **Tampilan:** antarmuka web dan mode PWA yang sama pada desktop/mobile, dengan chart TradingView yang disimpan lokal untuk penggunaan offline setelah shell dimuat, ikon koin eksternal dan fallback inisial bila ikon tidak tersedia. Preview menampilkan data pasar publik saja.
-- **Koneksi akun privat (read-only):** jika dikonfigurasi pada Worker privat, backend dapat menguji API OKX dan menampilkan saldo USDT serta posisi Swap yang sudah ada. Jalur baca hanya memerlukan kredensial server dan token pemilik; tidak bergantung pada flag eksekusi. API key/secret/passphrase hanya dibaca Worker; frontend tidak menerima atau menyimpan kredensial itu.
-- **Kode eksekusi manual/otomatis:** tersedia tetapi terkunci pada konfigurasi read-only. Quote/order manual, auto-start, dan alarm Durable Object tetap fail-closed kecuali flag eksekusi terkait diaktifkan secara eksplisit pada server. Tidak ada strategi atau bot yang dimulai oleh perubahan ini.
+- **Analisis teknikal dan alasan sinyal:** RSI(14) dan ATR(14) memakai smoothing Wilder pada candle tertutup. Kartu sinyal menjelaskan skor, RSI, timeframe, serta alasan filter menahan arah. Filter timeframe aktif opsional meminta EMA20 + MACD searah dan volume candle tertutup minimal 1,2× rata-rata 20 candle; tanpa data cukup, sinyal ditahan. EMA, MACD, Bollinger, dan volume juga tersedia sebagai overlay chart. Filter default mati. BUY/SELL/WAIT adalah aturan eksperimental, bukan prediksi atau kepastian hasil.
+- **Konteks derivatif (terpisah):** panel menampilkan funding prediksi/settlement dan open interest beserta timestamp OKX. Funding positif berarti long membayar short menurut dokumentasi OKX. Faktor funding kontrarian dan perubahan OI+harga dapat diberi bobot opsional (default 0%); funding/OI stale atau tidak tersedia dikeluarkan dari skor. OI perlu dua sampel segar pair yang sama. Ini bukan valuasi token; market cap/supply tetap tidak tersedia.
+- **Konfirmasi 4H opsional:** bila diaktifkan, arah harus sejalan dengan harga vs EMA20 dan histogram MACD 4H. Data 4H tidak cukup/stale atau konflik menahan sinyal (fail closed). Default mati agar perilaku skor sebelumnya tetap dipertahankan.
+- **Sizing risiko:** kontrak dibulatkan turun ke lot step OKX, memperhatikan `ctVal`, minimum order, target risiko paper, jarak stop 1,5× ATR, collateral/leverage simulasi, dan reserve fee taker asumsi. Nilai risiko nominal yang ditampilkan adalah gross sebelum fee, slippage, dan funding; hasil paper bersih dapat berbeda. TP referensi 2,5× ATR. Leverage hanya lokal dan tidak mengubah akun OKX.
+- **Paper long/short:** posisi baru mengasumsikan taker fee 0,05% tiap fill dan slippage 2 bps per fill; funding memakai rate terbaru dan jadwal berikutnya OKX, dengan asumsi fallback interval 8 jam (maksimum tiga interval terlewat per refresh). Ini estimasi, bukan fee-tier, rate historis atau settlement aktual. Maker, spread, partial fill, likuidasi, dan protective order tidak dimodelkan.
+- **Backtest lokal:** sampai 100 candle tertutup pada timeframe terpilih, sinyal RSI+sentimen manual, entry di open candle berikutnya, stop diperiksa konservatif lebih dulu bila SL/TP tersentuh di candle yang sama. Menampilkan win rate, profit factor, max drawdown, dan compounded gross return; tidak memakai filter EMA/MACD-volume atau 4H, funding/OI, fee, slippage, atau spread. Bukan jaminan performa live.
+- **Preferensi & portabilitas:** watchlist dan alert tersimpan lokal; alert hanya mengecek crossing saat tab aktif menerima ticker (bukan push/background). Overlay EMA/Bollinger/volume dan tema terang/gelap bersifat visual. CSV mengekspor histori; backup JSON mencakup portfolio dan perlu konfirmasi sebelum mengganti data lokal saat impor.
+- **Tampilan dan loading:** data lewat REST polling (ticker sekitar 60 detik, microstructure sekitar 15 detik), bukan WebSocket. Ada pesan gagal/retry, data terakhir tetap terlihat sebagai snapshot, skeleton saat pertama memuat, tabel riwayat dapat digeser horizontal, navigasi bawah mobile, dan PWA menunggu tombol “Perbarui aplikasi” sebelum takeover.
+- **Koneksi akun privat (read-only):** bila Worker privat dikonfigurasi, backend dapat membaca saldo/posisi dengan token sementara di halaman; field token dihapus saat halaman ditutup dan tidak disimpan di localStorage. Pada deployment publik saat ini tanpa account backend, seluruh panel akun/eksekusi disembunyikan.
+- **Keamanan:** revisi lokal menambahkan rate limit fixed-window Durable Object per hash SHA-256 IP: market 120/min, private account 60/min, quote 30/min, order 10/min, auto status 60/min, auto start/stop 10/min. Jika binding tidak tersedia, endpoint terproteksi menolak request. Token akses tidak pernah disimpan di localStorage. Quote/order manual, auto-start dan alarm tetap fail-closed; semua flag eksekusi terus mati.
 
 ## Analisis dan unit kontrak
 
@@ -39,12 +42,13 @@ Rumus sizing paper yang digunakan:
 ```text
 risiko target = ekuitas paper × persentase risiko
 jarak stop = ATR(14) × 1,5
-kontrak = floor ke lot step(min(risiko target / (jarak stop × ctVal), collateral × leverage / (harga × ctVal)))
+kontrak = floor ke lot step(min(risiko target / (jarak stop × ctVal), saldo / (harga × ctVal × (1/leverage + fee taker))))
 notional estimasi = kontrak × ctVal × harga
 margin estimasi = notional / leverage simulasi
+fee entry/exit = harga fill × kontrak × ctVal × 0,05% (asumsi)
 ```
 
-Sizing yang ditampilkan bukan jumlah yang dijamin dapat dibuka pada akun: exchange dapat menerapkan tier risiko, margin, fee, funding, posisi lain, dan aturan akun. Paper stop/target juga tidak memasang order SL/TP di OKX.
+Sizing yang ditampilkan bukan jumlah yang dijamin dapat dibuka pada akun: exchange dapat menerapkan tier risiko, margin, fee, funding, posisi lain, dan aturan akun. Simulasi memakai taker fee tetap dan slippage 2 bps, bukan biaya akun aktual. Paper stop/target tidak memasang order SL/TP di OKX.
 
 ## Trading dan keamanan
 
