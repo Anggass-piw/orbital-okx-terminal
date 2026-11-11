@@ -12,6 +12,7 @@ const CHALLENGE_TTL_MS = 90_000;
 const ORDER_GUARD_TTL_MS = 24 * 60 * 60 * 1000;
 const AUTO_POLL_INTERVAL_MS = 60_000;
 const AUTO_RSI_PERIOD = 14;
+const MAX_JSON_BODY_BYTES = 4096;
 
 function isUsdtSwapInstrument(value) {
   return typeof value === 'string' && SWAP_INST_ID.test(value);
@@ -272,12 +273,33 @@ async function privateAccountRoute(request, env) {
 }
 
 async function readJson(request) {
-  const length = Number(request.headers.get('content-length') || 0);
-  if (length > 4096) return null;
+  const contentLength = Number(request.headers.get('content-length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_JSON_BODY_BYTES) return null;
+  const reader = request.body?.getReader();
+  if (!reader) return null;
+  const chunks = [];
+  let totalBytes = 0;
   try {
-    const value = await request.json();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_JSON_BODY_BYTES) {
+        try { await reader.cancel(); } catch { /* Stop reading once the hard limit is crossed. */ }
+        return null;
+      }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    const value = JSON.parse(new TextDecoder().decode(bytes));
     return value && typeof value === 'object' && !Array.isArray(value) ? value : null;
   } catch {
+    try { await reader.cancel(); } catch { /* The body may already be closed. */ }
     return null;
   }
 }
