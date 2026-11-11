@@ -83,12 +83,12 @@
         <aside class="right-rail" aria-label="Paper trading dan sinyal">
           <article class="panel paper-panel" id="paper">
             <div class="panel-heading"><div><div class="section-kicker">AKUN SIMULASI</div><h2 class="panel-title">Paper portfolio</h2></div><span class="paper-badge"><i></i> PAPER</span></div>
-            <p class="panel-subtitle">Saldo simulasi lokal di perangkat ini</p>
+            <p class="panel-subtitle">SWAP USDT · posisi LONG / SHORT · simulasi lokal, bukan spot</p>
             <div class="portfolio-total"><div><span class="output-caption">TOTAL EKUITAS</span><b id="equityValue">$10,000.00</b></div><div class="portfolio-pnl"><span class="output-caption">UNREALIZED P&amp;L</span><b id="pnlValue">$0.00</b></div></div>
             <div class="portfolio-mini"><div><span>Saldo USDT</span><b id="cashValue">$10,000.00</b></div><div><span>Posisi aktif</span><b id="openPosition">Tidak ada</b></div></div>
             <div class="paper-action-label"><span>EKSEKUSI PAPER</span><i aria-hidden="true"></i></div>
             <button class="button button-primary execute-button" id="paperTradeBtn" type="button" disabled>Simulasikan sinyal</button>
-            <div class="paper-footnote" id="paperFootnote">Hanya berjalan pada sinyal BUY/SELL valid. Tidak mengirim order ke bursa.</div>
+            <div class="paper-footnote" id="paperFootnote">SWAP paper: BUY → LONG / SELL → SHORT pada sinyal valid. Tidak mengirim order ke bursa.</div>
             <div class="paper-safety"><span aria-hidden="true">✓</span>Eksekusi dan riwayat hanya untuk simulasi</div>
           </article>
 
@@ -97,9 +97,9 @@
             <p class="panel-subtitle">RSI + sentimen manual · data fundamental ditampilkan terpisah</p>
             <div class="signal-main"><div class="signal-gauge" id="signalGauge"><div class="gauge-inner"><span class="gauge-score" id="gaugeScore">—</span><span class="gauge-label">SKOR</span></div></div><div class="signal-result"><span class="signal-kicker">SIGNAL SAAT INI</span><b id="signalText" class="signal-hold">WAIT</b><small id="signalHint">Menghitung sinyal…</small></div></div>
             <div class="score-breakdown"><div class="breakdown-row"><span>Skor teknikal<small>RSI(14) ternormalisasi</small></span><b id="taScore">—</b></div><div class="breakdown-row"><span>Sentimen manual<small>Bukan data fundamental</small></span><b id="faScoreDisplay">0.00</b></div></div>
-            <div class="signal-threshold"><span>SELL <b>−0.65</b></span><div class="threshold-track"><i class="threshold-center"></i><i id="thresholdMarker"></i></div><span>BUY <b>+0.65</b></span></div>
+            <div class="signal-threshold"><span>SHORT / SELL <b>−0.65</b></span><div class="threshold-track"><i class="threshold-center"></i><i id="thresholdMarker"></i></div><span>LONG / BUY <b>+0.65</b></span></div>
             <div class="equation-note">S<sub>c</sub> = W<sub>ta</sub> · S<sub>ta</sub> + W<sub>m</sub> · S<sub>manual</sub></div>
-            <p class="signal-disclaimer">BUY/SELL/WAIT adalah indikator berbasis aturan, bukan kepastian hasil atau saran finansial.</p>
+            <p class="signal-disclaimer">Tanpa posisi: BUY → LONG, SELL → SHORT pada SWAP, bukan jual aset spot. Sinyal berlawanan menutup posisi paper aktif dahulu. WAIT tidak membuka posisi. Indikator bukan kepastian hasil.</p>
           </article>
           <article class="panel fundamentals-panel" id="fundamentals" aria-labelledby="fundamentalsTitle">
             <div class="panel-heading"><div><div class="section-kicker">KONTEKS FUNDAMENTAL</div><h2 class="panel-title" id="fundamentalsTitle">Data kontrak OKX</h2></div><span class="tiny-chip">TERPISAH DARI SINYAL</span></div>
@@ -124,8 +124,13 @@
             <label class="control-block"><span class="control-title">Risiko per trade <b id="riskValueLabel">1.0%</b></span><span class="control-help">Target risiko dari ekuitas paper hingga stop ATR</span><input id="riskInput" type="range" min="0.25" max="2" step="0.25" value="1" aria-label="Risiko per trade"><span class="range-ends"><span>0.25%</span><span>1.0%</span><span>2.0%</span></span></label>
             <label class="control-block"><span class="control-title">Leverage simulasi <b id="leverageValueLabel">1×</b></span><span class="control-help">Hanya sizing paper; tidak mengubah leverage akun OKX</span><input id="leverageInput" type="range" min="1" max="20" step="1" value="1" aria-label="Leverage simulasi"><span class="range-ends"><span>1×</span><span>maks. 20×</span></span></label>
             <label class="control-block"><span class="control-title">Bobot teknikal <b id="taWeightLabel">70%</b></span><span class="control-help">Sisa bobot dialokasikan ke sentimen manual; funding/OI tidak masuk ke sinyal</span><input id="weightInput" type="range" min="0" max="100" step="5" value="70" aria-label="Bobot teknikal"><span class="range-ends"><span>0% TA</span><span>70% default</span><span>100% TA</span></span></label>
-            <div class="risk-output"><span class="output-caption">ESTIMASI POSISI</span><b id="positionSize">—</b><span id="riskAmount">Risiko nominal: —</span><span class="risk-notional" id="riskNotional">Notional — · margin estimasi —</span><div class="risk-foot"><span>SL <b id="riskSL">—</b></span><span>TP <b id="riskTP">—</b></span></div></div>
+            <div class="risk-output"><span class="output-caption">ESTIMASI ENTRY SWAP</span><span class="risk-notional" id="riskDirection">WAIT · belum ada arah sinyal</span><b id="positionSize">—</b><span id="riskAmount">Risiko nominal: —</span><span class="risk-notional" id="riskNotional">Notional — · margin estimasi —</span><div class="risk-foot"><span>SL <b id="riskSL">—</b></span><span>TP <b id="riskTP">—</b></span></div></div>
           </div>
+          <div class="swap-scenarios" aria-label="Referensi TP SL SWAP dua arah">
+            <div class="swap-scenario"><b class="positive-text">LONG · untung jika harga naik</b><span id="longScenario">Menunggu data pasar</span><small>SL di bawah entry · TP di atas entry</small></div>
+            <div class="swap-scenario"><b class="negative-text">SHORT · untung jika harga turun</b><span id="shortScenario">Menunggu data pasar</span><small>TP di bawah entry · SL di atas entry</small></div>
+          </div>
+          <p class="panel-subtitle">Dua skenario referensi dari harga saat ini, bukan dua sinyal sekaligus. TP/SL hanya level simulasi; tidak memicu exit otomatis atau memasang protective order di OKX.</p>
           <div class="model-note"><span>i</span><span>Jumlah kontrak = risiko / (jarak stop × nilai kontrak), dibulatkan ke lot step OKX; dibatasi saldo paper × leverage simulasi. Notional dan margin adalah estimasi.</span></div>
         </article>
         <article class="panel live-panel" id="live">

@@ -725,6 +725,9 @@ function clearMarketDisplay(message = 'Menunggu data pasar') {
   $('#signalText').className = 'signal-hold';
   $('#signalHint').textContent = message;
   $('#riskAmount').textContent = 'Risiko nominal: —';
+  $('#riskDirection').textContent = 'WAIT · belum ada arah sinyal';
+  $('#longScenario').textContent = 'Menunggu data pasar';
+  $('#shortScenario').textContent = 'Menunggu data pasar';
   $('#thresholdMarker').style.left = '50%';
   $('#signalGauge').style.background = '#26313b';
   $('#paperTradeBtn').disabled = true;
@@ -881,12 +884,12 @@ function updateUI() {
   $('#gaugeScore').textContent = (state.score >= 0 ? '+' : '') + fmt(state.score, 2);
   const action = scoreAction();
   const signal = $('#signalText');
-  signal.textContent = action === 'HOLD' ? 'WAIT' : action;
+  signal.textContent = action === 'HOLD' ? 'WAIT' : action === 'BUY' ? 'LONG' : 'SHORT';
   signal.className = action === 'BUY' ? 'signal-buy' : action === 'SELL' ? 'signal-sell' : 'signal-hold';
-  $('#signalHint').textContent = action === 'BUY' ? `Skor > +0.65 · ${state.bar} · indikator, bukan kepastian`
-    : action === 'SELL' ? `Skor < −0.65 · ${state.bar} · indikator, bukan kepastian`
+  $('#signalHint').textContent = action === 'BUY' ? `BUY → LONG · skor > +0.65 · ${state.bar} · referensi SWAP`
+    : action === 'SELL' ? `SELL → SHORT · skor < −0.65 · ${state.bar} · referensi SWAP`
       : `Di antara ambang ±0.65 · ${state.bar} · tunggu konfirmasi`;
-  $('#scoreState').textContent = action === 'HOLD' ? 'WAIT · sinyal netral' : `SIGNAL · ${action}`;
+  $('#scoreState').textContent = action === 'HOLD' ? 'WAIT · sinyal netral' : `SWAP · ${action === 'BUY' ? 'LONG / BUY' : 'SHORT / SELL'}`;
   $('#scoreState').style.color = action === 'BUY' ? 'var(--green)' : action === 'SELL' ? 'var(--red)' : 'var(--yellow)';
   $('#taScore').textContent = (state.taScore >= 0 ? '+' : '') + fmt(state.taScore, 2);
   $('#faScoreDisplay').textContent = (state.faScore >= 0 ? '+' : '') + fmt(state.faScore, 2);
@@ -895,14 +898,22 @@ function updateUI() {
   $('#signalGauge').style.background = `conic-gradient(${state.score >= 0 ? 'var(--green)' : 'var(--red)'} ${Math.abs(degrees)}deg,#26313b ${Math.abs(degrees)}deg 360deg)`;
   $('#atrValue').textContent = fmt(state.atr, state.price > 100 ? 2 : 6);
   const existing = state.portfolio.position;
-  const direction = existing ? existing.side : action === 'SELL' ? 'short' : 'long';
+  // Entry references follow the selected instrument's signal, not an existing position.
+  const direction = action === 'SELL' ? 'short' : 'long';
   const position = calcPosition(direction);
   const digits = contractDecimals(state.instrument?.lotSz);
-  $('#stopValue').textContent = fmt(position.sl, state.price > 100 ? 2 : 6);
+  const priceDigits = state.price > 100 ? 2 : 6;
+  $('#riskDirection').textContent = action === 'HOLD' ? 'WAIT · belum ada arah sinyal'
+    : `Referensi ${direction.toUpperCase()}${existing ? ' · bukan level posisi aktif' : ' · entry mengikuti sinyal'}`;
+  for (const side of ['long', 'short']) {
+    const levels = calcPosition(side);
+    $(`#${side}Scenario`).textContent = `Entry ${fmt(state.price, priceDigits)} · TP ${fmt(levels.tp, priceDigits)} · SL ${fmt(levels.sl, priceDigits)}`;
+  }
+  $('#stopValue').textContent = action === 'HOLD' ? '—' : fmt(position.sl, priceDigits);
   $('#positionSize').textContent = `${fmt(position.qty, digits)} kontrak`;
   $('#riskAmount').textContent = 'Risiko nominal: ' + money(position.risk);
-  $('#riskSL').textContent = fmt(position.sl, state.price > 100 ? 2 : 6);
-  $('#riskTP').textContent = fmt(position.tp, state.price > 100 ? 2 : 6);
+  $('#riskSL').textContent = action === 'HOLD' ? '—' : fmt(position.sl, priceDigits);
+  $('#riskTP').textContent = action === 'HOLD' ? '—' : fmt(position.tp, priceDigits);
   $('#riskNotional').textContent = `Notional ${money(position.notional)} · margin estimasi ${money(position.margin)} @ ${fmt(position.leverage, 0)}×`;
   $('#volumeValue').textContent = Number.isFinite(state.volume) ? `${fmt(state.volume, 0)} kontrak` : '—';
   const closesPosition = existing && existing.instId === state.asset
@@ -917,7 +928,7 @@ function updateUI() {
   $('#paperFootnote').textContent = closesPosition
     ? 'Sinyal berlawanan menutup posisi paper; biaya, funding, dan likuidasi tidak dimodelkan.'
     : blockedByPosition ? 'Tutup posisi paper aktif sebelum mengganti aset atau membuka posisi baru.'
-      : 'Paper trade memakai ukuran kontrak OKX; tidak mengirim order ke bursa.';
+      : 'SWAP paper: BUY → LONG / SELL → SHORT. TP/SL referensi, bukan exit otomatis; tidak mengirim order ke bursa.';
   drawChart();
 }
 
@@ -953,7 +964,7 @@ function drawChart() {
     const isBuy = action === 'BUY';
     tvMarkers.setMarkers([{
       time: Math.floor(signalCandle.ts / 1000), position: isBuy ? 'belowBar' : 'aboveBar',
-      color: isBuy ? '#a8e66b' : '#f07171', shape: isBuy ? 'arrowUp' : 'arrowDown', text: action,
+      color: isBuy ? '#a8e66b' : '#f07171', shape: isBuy ? 'arrowUp' : 'arrowDown', text: isBuy ? 'LONG · BUY' : 'SHORT · SELL',
     }]);
   } else tvMarkers?.setMarkers([]);
   for (const line of tvPriceLines) tvCandleSeries.removePriceLine(line);
@@ -964,9 +975,9 @@ function drawChart() {
     const addLine = (price, title, color) => tvPriceLines.push(tvCandleSeries.createPriceLine({
       price, color, lineWidth:1, lineStyle:2, axisLabelVisible:true, title,
     }));
-    addLine(state.price, 'ENTRY', '#82b9a2');
-    addLine(levels.sl, 'SL · 1.5× ATR', '#f07171');
-    addLine(levels.tp, 'TP · 2.5× ATR', '#a8e66b');
+    addLine(state.price, `REF ${direction.toUpperCase()} ENTRY`, '#82b9a2');
+    addLine(levels.sl, `REF ${direction.toUpperCase()} SL · 1.5× ATR`, '#f07171');
+    addLine(levels.tp, `REF ${direction.toUpperCase()} TP · 2.5× ATR`, '#a8e66b');
   }
 }
 
