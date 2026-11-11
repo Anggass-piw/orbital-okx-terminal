@@ -4,6 +4,19 @@
 
 PWA berbahasa Indonesia untuk memantau **OKX USDT-settled linear perpetual swaps**, menganalisis RSI/ATR dan skor sinyal, serta mencoba ukuran posisi dalam kontrak melalui paper trading lokal. Ini bukan aplikasi resmi OKX dan bukan saran investasi.
 
+## SWAP: LONG dan SHORT, bukan spot saja
+
+Terminal ini memakai kontrak perpetual SWAP USDT, bukan pembelian/penjualan aset spot. Saat belum ada posisi paper, sinyal **BUY berarti skenario LONG** (diuntungkan oleh kenaikan harga) dan **SELL berarti skenario SHORT** (diuntungkan oleh penurunan harga). Bila posisi paper sudah terbuka, sinyal berlawanan menutup posisi itu dahulu; tidak langsung membalik posisi. **WAIT tidak membuka posisi.**
+
+| Arah | Stop-loss referensi | Take-profit referensi |
+| --- | --- | --- |
+| LONG | Entry − 1,5 × ATR, di bawah entry | Entry + 2,5 × ATR, di atas entry |
+| SHORT | Entry + 1,5 × ATR, di atas entry | Entry − 2,5 × ATR, di bawah entry |
+
+UI menampilkan dua skenario LONG/SHORT dari harga saat ini agar arah TP/SL dapat dibandingkan, termasuk saat WAIT. Keduanya adalah referensi, **bukan dua sinyal entry sekaligus**. Label sinyal dan garis chart menyebut arah SWAP; estimasi entry mengikuti sinyal saat ini, bukan sisi posisi lain yang sedang terbuka. Contoh entry 100 dan ATR 10: LONG SL 85 / TP 125; SHORT SL 115 / TP 75.
+
+**TP/SL ini tidak memicu penutupan otomatis pada paper dan tidak memasang protective order di OKX.** Level yang tersimpan pada posisi paper tetap referensi saat entry; preview dapat berubah bersama harga/ATR. Mode order nyata dan auto-trading tetap nonaktif. Tidak ada order exchange, leverage akun, atau konfigurasi eksekusi yang diaktifkan oleh perubahan UI ini.
+
 ## Yang tersedia
 
 - **Katalog dinamis:** backend mengambil semua instrumen SWAP aktif yang diselesaikan dalam USDT dan bertipe linear dari endpoint publik OKX. Tidak ada daftar BTC/ETH/SOL yang dikunci di frontend. Pencarian menyaring katalog, kontrak yang nilainya berbeda ditampilkan dengan ukuran/minimum/lot/tick masing-masing, dan katalog diperbarui berkala. Kontrak inverse dan instrumen yang tidak aktif tidak ikut ditampilkan.
