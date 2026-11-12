@@ -146,6 +146,31 @@ with sync_playwright() as p:
         page.locator('#installBtn').click()
         assert page.locator('#installHelp').is_visible()
         page.locator('#closeInstallHelp').click()
+        if width in (1440,390):
+            page.evaluate('''() => localStorage.setItem('orbital-paper-v2', JSON.stringify({cash:1000,position:{instId:'BTC-USDT-SWAP',side:'long',qty:1,entry:90,ctVal:0.01,margin:1,sl:80,tp:120,openedAt:Date.now(),entryFee:0.01,fundingAccrued:0,fundingRateAtEntry:0.0001,nextFundingTime:Date.now()+3600000,autoExit:true},trades:[]}))''')
+            page.reload(wait_until='networkidle')
+            page.locator('#positionManager').wait_for(state='visible')
+            assert 'BTC-USDT-SWAP' in page.locator('#positionManagerInstrument').inner_text()
+            assert page.locator('#positionMarkPrice').inner_text().startswith('100'), 'Position manager loads a fresh quote for the active position'
+            assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Open-position controls must not overflow the viewport'
+            page.locator('#instrumentSearch').fill('eth-usdt')
+            page.locator('#instrumentResults [role="option"]').click()
+            page.locator('#chartAsset').filter(has_text='ETH-USDT-SWAP').wait_for()
+            assert page.locator('#positionManager').is_visible(), 'Open paper position remains manageable after switching chart pairs'
+            assert page.locator('#positionMarkPrice').inner_text().startswith('100')
+            assert page.locator('#closePaperPositionBtn').is_enabled()
+            await_catalog=page.evaluate('() => loadInstruments()')
+            assert await_catalog is True, 'Catalog refresh succeeds while a paper position is open'
+            assert page.locator('#assetSelect').input_value()=='ETH-USDT-SWAP', 'Catalog refresh preserves the chart pair chosen separately from the position'
+            page.get_by_role('button',name='4H',exact=True).click()
+            assert page.get_by_role('button',name='4H',exact=True).get_attribute('aria-pressed')=='true'
+            page.locator('#closePaperPositionBtn').click()
+            page.locator('#positionManager').wait_for(state='hidden')
+            saved=page.evaluate("JSON.parse(localStorage.getItem('orbital-paper-v2'))")
+            assert saved['position'] is None, 'Manual close clears only the local simulated position'
+            assert saved['trades'][-1]['exitReason']=='MANUAL'
+            assert not errors, errors
+            print('ui-smoke: active paper position stays independent of chart pair/timeframe and can be closed manually with a fresh mock quote')
         assert not errors, errors
         print(f'ui-smoke: {width}x{height} OK — no overflow, chart, live Swap fixtures, dynamic catalog, safe paper state and install help')
         context.close()
