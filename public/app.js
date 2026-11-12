@@ -14,6 +14,11 @@ const state = {
   analysisCandles: [],
   fundamentals: null,
   price: null,
+  priceTs: null,
+  positionMark: null,
+  positionMarkLoading: false,
+  positionMarkError: null,
+  positionCloseLoading: false,
   open24h: null,
   volume: null,
   high24h: null,
@@ -137,6 +142,7 @@ function loadPortfolio() {
           entryFee: Number.isFinite(Number(raw.entryFee)) && Number(raw.entryFee) >= 0 ? Number(raw.entryFee) : 0,
           fundingAccrued: Number.isFinite(Number(raw.fundingAccrued)) ? Number(raw.fundingAccrued) : 0,
           fundingRateAtEntry: Number.isFinite(Number(raw.fundingRateAtEntry)) ? Number(raw.fundingRateAtEntry) : 0,
+          fundingRateAtMark: Number.isFinite(Number(raw.fundingRateAtMark)) ? Number(raw.fundingRateAtMark) : null,
           nextFundingTime: Number.isFinite(Number(raw.nextFundingTime)) && Number(raw.nextFundingTime) > 0 ? Number(raw.nextFundingTime) : null,
           autoExit: raw.autoExit === true,
         }
@@ -365,11 +371,6 @@ function renderAssetMark() {
   holder.append(icon);
 }
 function selectMarketInstrument(instId) {
-  if (state.portfolio.position && instId !== state.asset) {
-    $('#paperFootnote').textContent = 'Tutup posisi paper sebelum mengganti aset.';
-    $('#assetSelect').value = state.asset;
-    return false;
-  }
   const selected = state.instruments.find(item => item.instId === instId);
   if (!selected) return false;
   state.asset = selected.instId;
@@ -389,6 +390,7 @@ function selectMarketInstrument(instId) {
   renderInstrumentOptions();
   renderWatchlist();
   loadMarket();
+  if (state.portfolio.position && state.portfolio.position.instId !== state.asset) refreshPositionMark();
   return true;
 }
 async function loadInstruments() {
@@ -399,7 +401,7 @@ async function loadInstruments() {
     if (!items.length) throw new Error('Katalog perpetual USDT kosong');
     items.sort((a, b) => a.baseCcy.localeCompare(b.baseCcy) || a.instId.localeCompare(b.instId));
     const hadCatalog = state.instruments.length > 0;
-    const preferredId = state.portfolio.position?.instId || state.asset;
+    const preferredId = state.instrument ? state.asset : (state.portfolio.position?.instId || state.asset);
     let chosen = items.find(item => item.instId === preferredId);
     if (!chosen && (hadCatalog || state.portfolio.position)) {
       state.instruments = items;
@@ -820,9 +822,12 @@ function volumeExpansion(candles, period = 20, multiplier = 1.2) {
 }
 
 function getUnrealized(position = state.portfolio.position) {
-  if (!position || !state.price || position.instId !== state.asset) return 0;
+  if (!position) return 0;
+  const mark = state.positionMark?.instId === position.instId ? Number(state.positionMark.price)
+    : position.instId === state.asset ? Number(state.price) : null;
+  if (!Number.isFinite(mark) || mark <= 0) return 0;
   const sign = position.side === 'long' ? 1 : -1;
-  return (state.price - position.entry) * position.qty * position.ctVal * sign;
+  return (mark - position.entry) * position.qty * position.ctVal * sign;
 }
 function getEquity() {
   const position = state.portfolio.position;
@@ -1010,6 +1015,7 @@ async function loadMarket() {
       : trendOutcome.status === 'fulfilled' && Array.isArray(trendOutcome.value?.data) ? trendOutcome.value.data.map(row => ({ ts:Number(row[0]),open:Number(row[1]),high:Number(row[2]),low:Number(row[3]),close:Number(row[4]),confirm:String(row[8]) })).filter(candle => candle.confirm !== '0' && [candle.ts,candle.open,candle.high,candle.low,candle.close].every(Number.isFinite)).reverse()
         : [];
     state.price = price;
+    state.priceTs = Number(ticker.ts) || Date.now();
     state.open24h = Number.isFinite(open24h) && open24h > 0 ? open24h : null;
     state.volume = Number(ticker.vol24h);
     state.high24h = Number(ticker.high24h);
@@ -1048,6 +1054,7 @@ async function loadMarket() {
     state.loadedBar = requestedBar;
     $('#marketStrip').classList.remove('is-initial-loading');
     evaluatePriceAlerts(requestedAsset, price);
+    setPositionMark(requestedAsset, price, ticker.ts, state.fundamentals.fundingRate, state.fundamentals.nextFundingTime);
     evaluatePaperExit(requestedAsset, price);
     state.connected = true;
     state.loading = false;
@@ -1174,19 +1181,15 @@ function updateUI() {
   $('#riskTP').textContent = action === 'HOLD' ? '—' : fmt(position.tp, priceDigits);
   $('#riskNotional').textContent = `Notional ${money(position.notional)} · margin estimasi ${money(position.margin)} @ ${fmt(position.leverage, 0)}×${stale ? ' · STALE' : ''}`;
   $('#volumeValue').textContent = Number.isFinite(state.volume) ? `${fmt(state.volume, 0)} kontrak` : '—';
-  const closesPosition = existing && existing.instId === state.asset
-    && ((action === 'BUY' && existing.side === 'short') || (action === 'SELL' && existing.side === 'long'));
-  const blockedByPosition = existing && !closesPosition;
+  const blockedByPosition = Boolean(existing);
   $('#paperTradeBtn').disabled = !state.connected || state.loading || action === 'HOLD'
-    || blockedByPosition || (!existing && position.qty < Number(state.instrument?.minSz));
-  $('#paperTradeBtn').textContent = closesPosition
-    ? `Tutup posisi ${existing.side.toUpperCase()} paper`
-    : existing ? `Posisi ${existing.side.toUpperCase()} terbuka`
+    || blockedByPosition || position.qty < Number(state.instrument?.minSz);
+  $('#paperTradeBtn').textContent = existing
+    ? `Posisi ${existing.side.toUpperCase()} aktif`
       : action === 'BUY' ? 'Simulasikan LONG' : action === 'SELL' ? 'Simulasikan SHORT' : 'Tunggu sinyal valid';
-  $('#paperFootnote').textContent = closesPosition
-    ? 'Sinyal berlawanan menutup posisi paper dengan fee taker 0,05%/fill dan slippage asumsi 2 bps. Funding hanya estimasi 8 jam dari rate terbaru; tidak ada order OKX.'
-    : blockedByPosition ? 'Tutup posisi paper aktif sebelum mengganti aset atau membuka posisi baru.'
-      : 'SWAP paper: taker 0,05%/fill + slippage asumsi 2 bps; funding estimasi memakai rate terbaru dan interval 8 jam. SL/TP dipantau pada ticker valid saat tab aktif; gap dan hasil tidak dijamin. Tidak mengirim order ke bursa.';
+  $('#paperFootnote').textContent = blockedByPosition
+    ? `Satu posisi ${existing.instId} sedang terbuka. Chart pair/timeframe bebas diganti; kelola dan tutup posisi dari panel di atas.`
+    : 'SWAP paper: taker 0,05%/fill + slippage asumsi 2 bps; funding estimasi memakai rate posisi. SL/TP dipantau tiap 15 detik saat tab aktif; gap dan hasil tidak dijamin. Tidak mengirim order ke bursa.';
   drawChart();
 }
 
@@ -1240,12 +1243,17 @@ function drawChart() {
   } else tvMarkers?.setMarkers([]);
   for (const line of tvPriceLines) tvCandleSeries.removePriceLine(line);
   tvPriceLines = [];
-  if (action !== 'HOLD' && Number.isFinite(state.price) && Number.isFinite(state.atr) && state.atr > 0) {
+  const addLine = (price, title, color) => tvPriceLines.push(tvCandleSeries.createPriceLine({
+    price, color, lineWidth:1, lineStyle:2, axisLabelVisible:true, title,
+  }));
+  const activePosition = state.portfolio.position;
+  if (activePosition?.instId === state.asset) {
+    addLine(activePosition.entry, `${activePosition.side.toUpperCase()} ENTRY PAPER`, '#82b9a2');
+    addLine(activePosition.sl, `SL POSISI ${activePosition.side.toUpperCase()}`, '#f07171');
+    addLine(activePosition.tp, `TP POSISI ${activePosition.side.toUpperCase()}`, '#a8e66b');
+  } else if (action !== 'HOLD' && Number.isFinite(state.price) && Number.isFinite(state.atr) && state.atr > 0) {
     const direction = action === 'SELL' ? 'short' : 'long';
     const levels = calcPosition(direction);
-    const addLine = (price, title, color) => tvPriceLines.push(tvCandleSeries.createPriceLine({
-      price, color, lineWidth:1, lineStyle:2, axisLabelVisible:true, title,
-    }));
     addLine(state.price, `REF ${direction.toUpperCase()} ENTRY`, '#82b9a2');
     addLine(levels.sl, `REF ${direction.toUpperCase()} SL · 1.5× ATR`, '#f07171');
     addLine(levels.tp, `REF ${direction.toUpperCase()} TP · 2.5× ATR`, '#a8e66b');
@@ -1263,6 +1271,7 @@ function renderPortfolio() {
   const name = position ? (state.instruments.find(item => item.instId === position.instId)?.baseCcy || position.instId.split('-')[0]) : '';
   $('#openPosition').textContent = position ? `${position.side.toUpperCase()} ${formatContracts(position.qty, position.instId, position.lotSz)} ${name}` : 'Tidak ada';
   renderTrades();
+  renderPositionManager();
 }
 
 function renderTrades() {
@@ -1523,12 +1532,15 @@ function paperExit(position, exitPrice, reason = 'MANUAL') {
   const exitFee = fillPrice * position.qty * position.ctVal * PAPER_TAKER_FEE;
   const entryFee = Number(position.entryFee) || 0;
   const fundingAccrued = Number(position.fundingAccrued) || 0;
+  const lotSz = position.lotSz || state.instruments.find(item => item.instId === position.instId)?.lotSz || '0.01';
   state.portfolio.cash += position.margin + gross - exitFee;
   state.portfolio.trades.push({ time:Date.now(), asset:position.instId, side:'CLOSE', price:fillPrice,
-    qty:position.qty, lotSz:position.lotSz || state.instrument?.lotSz || '0.01',
+    qty:position.qty, lotSz,
     pnl:gross - entryFee - exitFee + fundingAccrued, grossPnl:gross, entryFee, exitFee,
     funding:fundingAccrued, exitReason:reason });
   state.portfolio.position = null;
+  state.positionMark = null;
+  state.positionMarkError = null;
   savePortfolio();
   updateUI();
   return true;
@@ -1541,7 +1553,7 @@ function applyEstimatedFunding(position, price, now = Date.now()) {
   }
   let iterations = 0;
   while (position.nextFundingTime <= now && iterations < 3) {
-    const rate = Number(state.fundamentals?.fundingRate ?? position.fundingRateAtEntry);
+    const rate = Number(position.fundingRateAtMark ?? position.fundingRateAtEntry);
     if (!Number.isFinite(rate)) break;
     const notional = position.qty * position.ctVal * price;
     const cashflow = -(position.side === 'long' ? 1 : -1) * notional * rate;
@@ -1551,8 +1563,120 @@ function applyEstimatedFunding(position, price, now = Date.now()) {
     iterations++;
   }
   if (position.nextFundingTime <= now) position.nextFundingTime = now + FUNDING_INTERVAL_ESTIMATE_MS;
-  const nextFromOkx = Number(state.fundamentals?.nextFundingTime);
-  if (Number.isFinite(nextFromOkx) && nextFromOkx > now && nextFromOkx > position.nextFundingTime - FUNDING_INTERVAL_ESTIMATE_MS) position.nextFundingTime = nextFromOkx;
+}
+
+function getPositionMark(position = state.portfolio.position) {
+  return position && state.positionMark?.instId === position.instId ? state.positionMark : null;
+}
+function setPositionMark(instId, price, ts = Date.now(), fundingRate = null, nextFundingTime = null) {
+  const position = state.portfolio.position;
+  if (!position || position.instId !== instId || !Number.isFinite(Number(price)) || Number(price) <= 0) return false;
+  const incomingTs = Number(ts) || Date.now();
+  if (state.positionMark?.instId === instId && Number(state.positionMark.ts) > incomingTs) return false;
+  state.positionMark = { instId, price:Number(price), ts:incomingTs, receivedAt:Date.now() };
+  if (fundingRate !== null && fundingRate !== undefined && Number.isFinite(Number(fundingRate))) position.fundingRateAtMark = Number(fundingRate);
+  if (Number.isFinite(Number(nextFundingTime)) && Number(nextFundingTime) > Date.now()) position.nextFundingTime = Number(nextFundingTime);
+  state.positionMarkError = null;
+  return true;
+}
+function renderPositionManager() {
+  const position = state.portfolio.position;
+  const panel = $('#positionManager');
+  if (!panel) return;
+  panel.hidden = !position;
+  const button = $('#closePaperPositionBtn');
+  if (!position) {
+    button.disabled = true;
+    return;
+  }
+  const mark = getPositionMark(position);
+  const base = state.instruments.find(item => item.instId === position.instId)?.baseCcy || position.instId.split('-')[0];
+  const fresh = Boolean(mark && Date.now() - mark.receivedAt < 45_000);
+  $('#positionManagerInstrument').textContent = `${position.side.toUpperCase()} · ${position.instId}`;
+  $('#positionManagerState').textContent = state.positionMarkLoading ? 'MEMPERBARUI HARGA…'
+    : fresh ? 'HARGA POSISI SEGAR' : state.positionMarkError ? 'HARGA POSISI STALE' : 'MENUNGGU HARGA';
+  $('#positionMarkPrice').textContent = mark ? `${fmt(mark.price, mark.price > 100 ? 2 : 6)} USDT` : '—';
+  const pnl = mark ? getUnrealized(position) : null;
+  $('#positionMarkPnl').textContent = pnl == null ? 'Menunggu data' : `${pnl >= 0 ? '+' : ''}${money(pnl)}`;
+  $('#positionMarkPnl').className = pnl > 0 ? 'positive-text' : pnl < 0 ? 'negative-text' : '';
+  $('#positionStopPrice').textContent = fmt(position.sl, position.sl > 100 ? 2 : 6);
+  $('#positionTargetPrice').textContent = fmt(position.tp, position.tp > 100 ? 2 : 6);
+  button.disabled = state.positionCloseLoading;
+  button.textContent = state.positionCloseLoading ? 'Memuat harga & menutup…' : 'Tutup posisi paper';
+  $('#positionManagerNote').textContent = state.positionMarkError
+    ? `Harga ${base} belum berhasil diperbarui. Coba tutup lagi saat koneksi tersedia; tidak ada order OKX yang dikirim.`
+    : `Harga dan SL/TP posisi ${base} dipantau terpisah dari chart, setiap 15 detik saat tab aktif. Penutupan memakai simulasi fee dan slippage.`;
+}
+async function fetchPositionQuote(instId) {
+  const encoded = encodeURIComponent(instId);
+  const [tickerOutcome, fundingOutcome] = await Promise.allSettled([
+    getJson(`${API}/ticker?instId=${encoded}`),
+    getJson(`${API}/funding-rate?instId=${encoded}`),
+  ]);
+  if (tickerOutcome.status !== 'fulfilled') throw tickerOutcome.reason;
+  const ticker = tickerOutcome.value?.data?.find(row => row?.instId === instId);
+  const price = Number(ticker?.last);
+  if (!Number.isFinite(price) || price <= 0) throw new Error('Harga posisi tidak valid');
+  const funding = fundingOutcome.status === 'fulfilled'
+    ? fundingOutcome.value?.data?.find(row => row?.instId === instId) || null : null;
+  return {
+    price, ts:Number(ticker?.ts) || Date.now(),
+    fundingRate:funding && funding.fundingRate !== '' && Number.isFinite(Number(funding.fundingRate)) ? Number(funding.fundingRate) : null,
+    nextFundingTime:Number(funding?.nextFundingTime) || null,
+  };
+}
+async function refreshPositionMark() {
+  const position = state.portfolio.position;
+  if (!position || state.positionMarkLoading) return false;
+  const instId = position.instId;
+  state.positionMarkLoading = true;
+  renderPositionManager();
+  try {
+    const quote = await fetchPositionQuote(instId);
+    if (state.portfolio.position?.instId !== instId) return false;
+    const accepted = setPositionMark(instId, quote.price, quote.ts, quote.fundingRate, quote.nextFundingTime);
+    const mark = getPositionMark();
+    if (accepted && mark) evaluatePaperExit(instId, mark.price);
+    renderPortfolio();
+    return true;
+  } catch {
+    if (state.portfolio.position?.instId === instId) {
+      state.positionMarkError = 'Harga posisi belum berhasil diperbarui';
+      renderPortfolio();
+    }
+    return false;
+  } finally {
+    state.positionMarkLoading = false;
+    renderPositionManager();
+  }
+}
+async function closePaperPositionManually() {
+  const position = state.portfolio.position;
+  if (!position || state.positionCloseLoading) return false;
+  const instId = position.instId;
+  state.positionCloseLoading = true;
+  renderPositionManager();
+  try {
+    const quote = await fetchPositionQuote(instId);
+    if (state.portfolio.position !== position) return false;
+    setPositionMark(instId, quote.price, quote.ts, quote.fundingRate, quote.nextFundingTime);
+    const mark = getPositionMark(position);
+    if (!mark) throw new Error('Harga posisi tidak tersedia');
+    if (!evaluatePaperExit(instId, mark.price)) {
+      if (position.autoExit !== true) applyEstimatedFunding(position, mark.price);
+      paperExit(position, mark.price, 'MANUAL');
+    }
+    return true;
+  } catch {
+    if (state.portfolio.position === position) {
+      state.positionMarkError = 'Harga posisi belum berhasil diperbarui';
+      renderPortfolio();
+    }
+    return false;
+  } finally {
+    state.positionCloseLoading = false;
+    renderPositionManager();
+  }
 }
 
 function evaluatePaperExit(instId, price) {
@@ -1573,7 +1697,7 @@ function evaluatePaperExit(instId, price) {
 function paperTrade() {
   const action = scoreAction();
   const existing = state.portfolio.position;
-  if (!state.price || !state.connected || action === 'HOLD') return;
+  if (!state.price || !state.connected || action === 'HOLD' || existing) return;
   const now = Date.now();
   if (!existing) {
     const direction = action === 'BUY' ? 'long' : 'short';
@@ -1592,15 +1716,11 @@ function paperTrade() {
       fundingRateAtEntry:Number.isFinite(state.fundamentals?.fundingRate) ? state.fundamentals.fundingRate : 0,
       nextFundingTime:Number(state.fundamentals?.nextFundingTime) > now
         ? Number(state.fundamentals.nextFundingTime) : now + FUNDING_INTERVAL_ESTIMATE_MS,
+      fundingRateAtMark:Number.isFinite(state.fundamentals?.fundingRate) ? state.fundamentals.fundingRate : 0,
       autoExit:true,
     };
+    setPositionMark(state.asset, state.price, state.priceTs || now, state.fundamentals?.fundingRate, state.fundamentals?.nextFundingTime);
     state.portfolio.trades.push({ time: now, asset: state.asset, side: direction.toUpperCase(), price: fillPrice, qty: sizing.qty, lotSz: String(state.instrument.lotSz || '0.01'), fee:entryFee, pnl: null });
-  } else {
-    const closes = existing.instId === state.asset
-      && ((action === 'BUY' && existing.side === 'short') || (action === 'SELL' && existing.side === 'long'));
-    if (!closes) return;
-    paperExit(existing, state.price, 'MANUAL');
-    return;
   }
   savePortfolio();
   updateUI();
@@ -1780,6 +1900,7 @@ document.querySelectorAll('.timeframe').forEach(button => button.addEventListene
 }));
 $('#refreshBtn').addEventListener('click', async () => { if (!state.instruments.length) { if (await loadInstruments()) loadMarket(); } else loadMarket(); });
 $('#paperTradeBtn').addEventListener('click', paperTrade);
+$('#closePaperPositionBtn').addEventListener('click', closePaperPositionManually);
 $('#clearHistoryBtn').addEventListener('click', () => {
   state.portfolio.trades = [];
   savePortfolio();
@@ -1823,8 +1944,8 @@ window.addEventListener('beforeinstallprompt', event => {
   state.installPrompt = event;
   $('#installBtn').hidden = false;
 });
-if (state.portfolio.position?.asset) {
-  state.asset = state.portfolio.position.asset;
+if (state.portfolio.position?.instId) {
+  state.asset = state.portfolio.position.instId;
   $('#assetSelect').value = state.asset;
 }
 if (window.matchMedia('(display-mode: standalone)').matches) $('#installBtn').hidden = true;
@@ -1849,6 +1970,7 @@ async function startApp() {
     loadMarket();
   }
   setInterval(() => { if (!document.hidden && state.instruments.length) loadMarket(); }, 60_000);
+  setInterval(() => { if (!document.hidden && state.portfolio.position) refreshPositionMark(); }, 15_000);
   setInterval(() => { if (!document.hidden && !state.loading && state.asset) loadMicrostructure(); }, 15_000);
   setInterval(() => { if (!document.hidden) loadInstruments(); }, 15 * 60_000);
 }

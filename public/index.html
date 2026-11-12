@@ -89,6 +89,13 @@
             <p class="panel-subtitle">SWAP USDT · posisi LONG / SHORT · simulasi lokal, bukan spot</p>
             <div class="portfolio-total"><div><span class="output-caption">TOTAL EKUITAS</span><b id="equityValue">$10,000.00</b></div><div class="portfolio-pnl"><span class="output-caption">UNREALIZED P&amp;L</span><b id="pnlValue">$0.00</b></div></div>
             <div class="portfolio-mini"><div><span>Saldo USDT</span><b id="cashValue">$10,000.00</b></div><div><span>Posisi aktif</span><b id="openPosition">Tidak ada</b></div></div>
+            <section class="position-manager" id="positionManager" hidden aria-label="Kelola posisi paper terbuka">
+              <div class="position-manager-heading"><div><span class="output-caption">POSISI PAPER AKTIF</span><b id="positionManagerInstrument">—</b></div><span class="position-manager-state" id="positionManagerState">Menunggu harga</span></div>
+              <div class="position-manager-metrics"><div><span>Harga mark</span><b id="positionMarkPrice">—</b></div><div><span>P&amp;L belum terealisasi</span><b id="positionMarkPnl">—</b></div></div>
+              <div class="position-manager-levels"><span>SL <b id="positionStopPrice">—</b></span><span>TP <b id="positionTargetPrice">—</b></span></div>
+              <button class="button button-outline position-close-button" id="closePaperPositionBtn" type="button" disabled>Tutup posisi paper</button>
+              <p class="position-manager-note" id="positionManagerNote">Harga posisi diperbarui otomatis saat tab aktif.</p>
+            </section>
             <div class="paper-action-label"><span>EKSEKUSI PAPER</span><i aria-hidden="true"></i></div>
             <button class="button button-primary execute-button" id="paperTradeBtn" type="button" disabled>Simulasikan sinyal</button>
             <div class="paper-footnote" id="paperFootnote">SIMULASI LOKAL, BUKAN ORDER OKX/NYATA. BUY → LONG / SELL → SHORT pada SWAP. Posisi baru memodelkan biaya asumsi dan memeriksa SL/TP saat data harga diperbarui; bukan eksekusi terjamin.</div>
@@ -104,7 +111,7 @@
             <div class="signal-threshold"><span>SHORT / SELL <b>−0.65</b></span><div class="threshold-track"><i class="threshold-center"></i><i id="thresholdMarker"></i></div><span>LONG / BUY <b>+0.65</b></span></div>
             <div class="equation-note">S<sub>c</sub> = jumlah(w<sub>i</sub> × s<sub>i</sub>) / jumlah bobot tersedia</div>
             <details class="term-help"><summary>Penjelasan RSI, ATR, skor, dan rumus</summary><p>RSI(14) membandingkan momentum naik/turun. ATR(14) mengukur rentang volatilitas dan bukan prediksi arah. Skor berada pada −1 sampai +1; bobot derivatif default 0%, sehingga hasil awal tetap memakai bobot TA dan sentimen manual yang lama. Bobot komponen yang tidak tersedia dikeluarkan lalu bobot aktif dinormalisasi kembali. Funding hanya faktor kontrarian opsional; OI hanya dapat berkontribusi jika tersedia perubahan OI dan harga pada dua sampel segar pair yang sama.</p></details>
-            <p class="signal-disclaimer">Tanpa posisi: BUY → LONG, SELL → SHORT pada SWAP, bukan jual aset spot. Sinyal berlawanan menutup posisi paper aktif dahulu. WAIT tidak membuka posisi. Indikator bukan kepastian hasil.</p>
+            <p class="signal-disclaimer">Tanpa posisi: BUY → LONG, SELL → SHORT pada SWAP, bukan jual aset spot. Posisi aktif dapat ditutup manual dari panel paper; sinyal tidak menutupnya. SL/TP paper dipantau lokal. WAIT tidak membuka posisi. Indikator bukan kepastian hasil.</p>
           </article>
           <article class="panel fundamentals-panel" id="fundamentals" aria-labelledby="fundamentalsTitle">
             <div class="panel-heading"><div><div class="section-kicker">KONTEKS DERIVATIF</div><h2 class="panel-title" id="fundamentalsTitle">Data kontrak OKX</h2></div><span class="tiny-chip">TERPISAH DARI SINYAL</span></div>
